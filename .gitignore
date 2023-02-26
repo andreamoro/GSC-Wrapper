@@ -3,3 +3,4 @@
 .python-version
 .vscode/*
 build/*
+tests/config.ini
