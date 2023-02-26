@@ -1,0 +1,5 @@
+*__pycache__*
+.editorconfig
+.python-version
+.vscode/*
+build/*
