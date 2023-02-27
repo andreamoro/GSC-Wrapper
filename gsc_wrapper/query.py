@@ -359,7 +359,6 @@ class Query:
 
         Args:
             startDate (date): Query start date.
-
             endDate (date): Query end date.
 
         Returns:
@@ -450,16 +449,16 @@ class Query:
                 startDate = today - relativedelta(days=1) 
             if endDate >= today:
                 endDate = today - relativedelta(days=1)
-        
+
         if startDate < max_old_date:
             startDate = max_old_date
-                        
+
         if startDate > endDate:
             endDate, startDate = startDate, endDate
-        
+
         self._startDate = startDate
         self._endDate = endDate
-        
+
         self.raw.update({
             'startDate': startDate.isoformat(),
             'endDate': endDate.isoformat()
@@ -531,7 +530,7 @@ class Query:
     def get(self) -> Type['Report']:
         """Return the full batch of data by processing the constructed query
         and invoking the API.
-        It returns the dataset in a Repoort object.
+        It returns the dataset in a Report object.
 
         Returns:
             `gsc_wrapper.query.Report`
@@ -573,11 +572,11 @@ class Query:
     def __validate_query(self):
         """Internal method to avoid query errors that could be flagged at 
         run-time."""
-        
+
         # Case 1: Type = GOOGLE_NEWS cannot accet a filter whose Dimension is QUERY
         if self.raw.get('type') and 'google_news' in self.raw.get('type'):
             self.__filter_remove(self.raw.get('dimensionFilterGroups'), 'query', 'ALL')
-    
+
     def execute(self):
         """Invoke the API to process the query with the given parameters, 
         returning a response containing the raw data.
