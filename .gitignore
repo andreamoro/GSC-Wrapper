@@ -4,3 +4,8 @@
 .vscode/*
 build/*
 tests/config.ini
+gsc_wrapper.egg-info/dependency_links.txt
+gsc_wrapper.egg-info/PKG-INFO
+gsc_wrapper.egg-info/requires.txt
+gsc_wrapper.egg-info/SOURCES.txt
+gsc_wrapper.egg-info/top_level.txt
