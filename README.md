@@ -2,6 +2,8 @@
 
 [![License: GPL 3.0](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.txt)
 
+## Package purpose and content
+
 `gsc_wrapper` is a package to take the pain out when working with the [Google Search
 Console](https://support.google.com/webmasters/answer/9128668) Search Analytics Query API. 
 It is written in Python and provides convenient features to make querying a site's search analytics data easier.
@@ -59,6 +61,19 @@ Method cascading has been preserved to allow for more object-oriented API constr
 
 * **Exports.** Clean JSON and pandas.DataFrame outputs so you can easily analyse your data in Python or Excel. Added the possibility to persist data into a Python's pickle file.
 
+## Installation
+
+The package is not distribute on any repository at present. To install your local copy, download the code on your local machine then install it via the following command:
+
+```python
+    python -m pip install . 
+```
+
+BEWARE: gsc_wrapper depends from another package of mine not yet distributed on any repositor. To get that installed you have a couple of options:
+a) edit the `pyproject.toml` file and add the following line into the dependencies section: 
+    `multi-args-dispatcher @ file:// + your_absolute_path` 
+    e.g. "multi-args-dispatcher @ file:///home/andrea/GitHub/Python/Dispatcher"
+b) install the package manually as per the syntax above. Be sure to install the package into the same virtual environment if any.
 
 ## Quickstart
 
