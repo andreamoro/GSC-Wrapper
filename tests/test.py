@@ -74,19 +74,6 @@ def get_folder_structure(url: str):
 if __name__ == '__main__':
     test = False
     
-    
-    # url = "/questions/196017/splitting-urls-into-hierarchy-level-directories"
-    # boh = get_folder_structure(url)
-    
-    # for i in boh:
-    #     print(i)
-
-    # # import operator   
-    # # boh = get_folder_structure(url)      
-    # # for i in itertools.accumulate(boh, operator.iadd(i, '/')):
-    # #     print(i)        
-        
-    
     if not test:
         config = configparser.ConfigParser()
         config.read("./tests/config.ini")
@@ -123,12 +110,11 @@ if __name__ == '__main__':
             'user_agent': None,
             'token_expiry': None,
             'revoke_uri': GOOGLE_REVOKE_URI,
-        }    
+        }
 
         account = gsc_wrapper.Account(credentials)
-        site_list = account.webproperties()    
-        # site = account['https://www.andreamoro.eu/']
-        site = account['https://www.evensi.it/']
+        site_list = account.webproperties()
+        site = account['https://www.andreamoro.eu/']
 
     else:
         credentials = {
@@ -147,10 +133,11 @@ if __name__ == '__main__':
         web_properties = [{'siteUrl': 'www.test1.com', 'permissionLevel': '1'}, 
                             {'siteUrl': 'www.test2.com', 'permissionLevel': '1'}, 
                             {'siteUrl': 'subdomain.google.com', 'permissionLevel': '1'}]
+        
         site_list = [gsc_wrapper.WebProperty(raw, account) for raw in web_properties]
         account._webproperties = site_list
         site = account['www.test1.com']
-        
+
     from datetime import date
     # data = site.query.range(startDate=date(2022, 10, 10), endDate=date(2022, 11, 10))
     # print(site.query.raw)
@@ -162,7 +149,7 @@ if __name__ == '__main__':
     # print(site.query.raw)
     # assert site.query.startDate < site.query.endDate, "Error"
     # print()
-    
+
     # # String date arguments, date are valid, no problems are expected
     # data = site.query.range(startDate='2022-10-10', endDate='2022-11-10')
     # print(site.query.raw)
@@ -226,30 +213,27 @@ if __name__ == '__main__':
     # data = site.query.range(startDate=date.today(), days=1, months=0)
     # data = site.query.filter(country=gsc_wrapper.country.ITALY, operator=gsc_wrapper.operator.EQUALS, append=False)
     # data = site.query.search_type(gsc_wrapper.search_type.WEB)
-    
-   
     # data = site.query.filter(gsc_wrapper.country.ALBANIA,append=True).search_type(gsc_wrapper.search_type.IMAGE)
-    
-    # data = site.query.filter(gsc_wrapper.country.ITALY)
-    # .range(date.today(), months=-1)\
-    #         .dimensions(gsc_wrapper.dimension.DATE, gsc_wrapper.dimension.PAGE)
 
+    # *** Execute a query and return the whole dataset
     data = site.query.filter(gsc_wrapper.country.ITALY).range(date.today(), months=-1)\
             .dimensions(gsc_wrapper.dimension.DATE, gsc_wrapper.dimension.PAGE)
     report = data.get()
 
     # *** Execute a query against a sliced set of data
-    data = site.query.filter(gsc_wrapper.country.ITALY).range(date.today(), months=-1)\
+    # Here you can reuse the same object as before. 
+    # Retrieved data are copied at a report level as opposed to Carty's library
+    # where the whole class and every change where deeply copied
+    data = site.query.filter(gsc_wrapper.country.UNITED_KINGDOM).range(date.today(), months=-1)\
             .dimensions(gsc_wrapper.dimension.DATE, gsc_wrapper.dimension.PAGE).execute()
-    
-    # report = gsc_wrapper.Report(site.url, site.query.raw, data.get('rows'))
+    report2 = gsc_wrapper.Report(site.url, site.query.raw, data.get('rows'))
 
-    # *** Execute a query and return the whole dataset
     # data = site.query.filter(gsc_wrapper.country.ITALY).range(date.today(), months=-1)\
     #         .dimensions(gsc_wrapper.dimension.DATE, gsc_wrapper.dimension.PAGE)
-    
     # report = data.get()
-    # report.to_disk('20230109_https_www_evensi_it_.pck')
+
+    # *** Persist data on disk
+    # report.to_disk('https_www_andreamoro_eu.pck')
     
     # *** Restore a report persisted on disk
-    # report = gsc_wrapper.Report.from_disk('20230109_https_www_evensi_it_002.pck')
+    # report = gsc_wrapper.Report.from_disk('https_www_andreamoro_eu.pck')
