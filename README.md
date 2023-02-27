@@ -1,9 +1,10 @@
 # Google Search Console Wrapper
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GPL 3.0](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.txt)
 
-`gsc_wrapper` takes the pain out of working with the [Google Search
-Console](https://support.google.com/webmasters/answer/9128668) Search Analytics Query API. It is written in Python and provides convenient features to make querying a site's search analytics data easier.
+`gsc_wrapper` is a package to take the pain out when working with the [Google Search
+Console](https://support.google.com/webmasters/answer/9128668) Search Analytics Query API. 
+It is written in Python and provides convenient features to make querying a site's search analytics data easier.
 
 This wrapper is inspired (in fact partially replicates some parts) of [Josh Carty's wrapper](https://github.com/joshcarty/google-searchconsole). However, it also introduces fundamental changes to the logic and python coding, some are purely aestetical, others introduce modification that couldn't fit as project fork.  
 
@@ -21,7 +22,8 @@ The core of this wrapper is based on the [`search analytics: query`](https://dev
 This class prepares the JSON payload to be queried and later consumed via the `Report` class. A report is automatically generated when the `get` method is recalled, in which case the full dataset is lazily returned.
 To obtain a snapshot of the data, use the `execute` method.
 
-***Search Type*** can be used to segment the type of insights you want to retried. If you don't use this method, the default value used will be **web**.
+***Search Type*** can be used to segment the type of insights you want to retrive. If you don't use this method, the default value used will be **web**.
+
 ```py
 query.search_type(gsc_wrapper.search_type.IMAGE)
 ```
@@ -29,7 +31,7 @@ query.search_type(gsc_wrapper.search_type.IMAGE)
 ***Date Range*** can be used to box the insights into the specified period. There are several methods to combine the dates and several internal checks to prevent issuing an invalid request. 
 Also, the dates take into consideration the `data_state` value (`FINAL` by default), making adjustments if necessary to return details for an entire full day. 
 
-The date range is always double checked to avoid going back more than 16 months or greater than today. If a date range is not specified, by default the start date is set to today -2, and the end date to today -1.
+The date range prevents to go back more than 16 months or greater than today. If no range is specified, by default the start date is set to today -2, and the end date to today -1.
 
 ***Filters*** can be applied to the query in the same manner as for the GSC UI. Allowed options are: `contains`, `equals`, `notContains`, `notEquals`, `including Regex` & `excluding Regex`. For instance:
 
