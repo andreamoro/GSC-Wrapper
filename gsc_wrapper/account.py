@@ -2,7 +2,7 @@ import json
 
 from typing import Type
 from oauth2client import client
-from apiclient import discovery
+from googleapiclient import discovery
 from .query import Query
 
 
