@@ -8,67 +8,7 @@ import configparser
 
 from google_auth_oauthlib.flow import Flow
 from oauth2client import GOOGLE_REVOKE_URI, GOOGLE_TOKEN_URI, GOOGLE_AUTH_URI
-
 from dateutil.relativedelta import relativedelta
-
-def explore_paths():
-    # need to identify the leaf of the path
-    # need to identify the nodes of the path
-    
-    
-    # what I want is a ctr on a per directory basis
-    
-    # SOme ideas
-    #https://stackoverflow.com/questions/55114008/python-group-elements-together-in-list
-    #https://stackoverflow.com/questions/49975482/how-to-group-list-of-lists-in-python
-    
-    
-    # URLs list
-    #https://stackoverflow.com/questions/49975482/how-to-group-list-of-lists-in-python (leaf)
-    #https://stackoverflow.com/questions/49975482/
-    #https://stackoverflow.com/questions/
-    #https://stackoverflow.com/
-    #https://stackoverflow.com/tags
-    #https://stackoverflow.com/questions/tagged/javascript
-    #https://stackoverflow.com/questions/tagged/
-    
-    # On a first pass
-    # - Order by alphabetically (Not sure this is required)
-    # - Removing duplicates (shouldn't exist, but safer) - can use a python set
-    # - Remove the domain (at the end this function process one at a time)
-    # - Identify the leaf
-    # - Count the levels
-    # - Split the URLs into levels (here I'm going to have a nx matrix)
-    # - Group by chunks
-    pass
-
-def get_unique_urls_list(source: dict, domain: str) -> dict:
-    """Get a dict containing a unique list of URLs 
-    deprived by the domain name.
-    """
-    
-    # Using a set to remove duplicates
-    res = {item.replace(domain, "") for item in source}
-    
-    # Add the homepage that at this stage was remove
-    res.add("/")
-    
-    # Remove the empty node
-    res.remove("")
-    
-    return list(res)
-
-def get_folder_structure(url: str):
-    """Get a single URL and return as variable list of items
-    depending of how many folder it exists."""
-    previous = ""
-    for item in url.split("/"):
-        previous += item + "/"
-        yield previous
-    
-    # previous += item
-    # yield previous
-    # list_ = item
 
 
 if __name__ == '__main__':
