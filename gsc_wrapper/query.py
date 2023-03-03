@@ -326,8 +326,8 @@ class Query:
 
         Args:
             *limit (int): The maximum number of rows to return. 
-                          If two values are provided, they will be interpreted
-                          as the lower and higher bounds. 
+                          Whenever two values are provided, these will be interpreted
+                          as the lower and higher bounds.
 
         Returns:
             `gsc_wrapper.query.Query`
@@ -374,14 +374,14 @@ class Query:
     def range(self, startDate: str, endDate: str):
         """
         Return a query that fetches metrics within a given date range.
-        
+
         Args:
             startDate (str): Query start date in ISO format.
             endDate   (str): Query end date in ISO format.
-            
+
         Returns:
             `gsc_wrapper.query.Query`
-            
+
         Usage:
             >>> site.query.range(startDate='2022-10-10', endDate='2022-11-10')
             <gsc_wrapper.query.Query('2022-10-10', '2022-11-10')>
@@ -393,7 +393,7 @@ class Query:
         """
         Return a query that fetches metrics within a given date range. 
         If months is negative the start and end date will be adjusted accordingly. 
-        
+
         Args:
             startDate (date): Query start date.
             days      (int) : The number of days to add or substract from the start date.
@@ -402,7 +402,7 @@ class Query:
 
         Returns:
             `gsc_wrapper.query.Query`
-            
+
         Usage:
             >>> site.query.range(startDate=date(2022, 10, 10), days=0, months=1)
             <gsc_wrapper.query.Query(...)>
@@ -417,7 +417,7 @@ class Query:
         """
         Return a query that fetches metrics within a given date range. 
         If months is negative the start and end date will be adjusted accordingly. 
-        
+
         Args:
             startDate (str):    Query start date in ISO format.
             days      (int):    The number of days to add or substract from start 
@@ -496,7 +496,7 @@ class Query:
             startDate, endDate = endDate, startDate
 
         return self.__range_build(startDate, endDate)
-    
+
     @range.register
     def __(self, startDate: str, endDate: str):
         """Overload using start and end date as string to build the end date."""
