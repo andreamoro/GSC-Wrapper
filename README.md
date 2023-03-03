@@ -61,19 +61,16 @@ Method cascading has been preserved to allow for more object-oriented API constr
 
 * **Exports.** Clean JSON and pandas.DataFrame outputs so you can easily analyse your data in Python or Excel. Added the possibility to persist data into a Python's pickle file.
 
-## Installation
+## Installation & Requirements
 
-The package is not distribute on any repository at present. To install your local copy, download the code on your local machine then install it via the following command:
+Google Search Console Wrapper requires Python 3.10 or greated. At present the package is not distributed on any repository. To install your local copy, download the code on your local machine then install it via the following command:
 
 ```python
     python -m pip install . 
 ```
 
-BEWARE: gsc_wrapper depends from another package of mine not yet distributed on any repositor. To get that installed you have a couple of options:
-a) edit the `pyproject.toml` file and add the following line into the dependencies section: 
-    `multi-args-dispatcher @ file:// + your_absolute_path` 
-    e.g. "multi-args-dispatcher @ file:///home/andrea/GitHub/Python/Dispatcher"
-b) install the package manually as per the syntax above. Be sure to install the package into the same virtual environment if any.
+BEWARE: gsc_wrapper depends from another package of mine - [`multi-args-dispatcher`](https://github.com/andreamoro/Dispatcher) not yet distributed on any repository. 
+
 
 ## Quickstart
 
