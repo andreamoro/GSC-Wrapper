@@ -16,6 +16,6 @@ keywords = ["google", "google search console", "gsc wrapper", "google wrapper", 
 dependencies = [
     "oauth2client >= 4.1.3",
     "google-api-python-client >= 2.0.0",
-    "multi-args-dispatcher @ git+https://github.com/nittolese/Dispatcher",
+    "multi-args-dispatcher @ git+https://github.com/andreamoro/Dispatcher",
 ]
 
