@@ -69,7 +69,8 @@ For more plain English information about metrics and dimension, check the offici
 
 ## Installation & Requirements
 
-Google Search Console Wrapper requires Python 3.10 or greater. At present the package is not distributed on any repository. To get the package available in your local environment, download the code on your local machine then install using the following command:
+Google Search Console Wrapper requires Python 3.7 or greater. At present the package is not distributed on any repository. 
+To use the package, download the code on your local machine then install using the following command:
 
 ```bash
     python -m pip install . 
