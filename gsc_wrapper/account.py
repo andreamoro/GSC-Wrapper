@@ -1,8 +1,8 @@
-import json
-
 from typing import Type
-from oauth2client import client
+
 from googleapiclient import discovery
+from oauth2client import client
+
 from .query import Query
 
 
@@ -11,10 +11,10 @@ class Account:
     An account can be associated with a number of web
     properties.
     You should navigate to a web property to run queries.
-    
+
     Args:
         service
-    
+
     Usage:
     >>> import gsc_wrapper
     >>> account = Account(credentials)
@@ -26,20 +26,21 @@ class Account:
     <gsc_wrapper.account.WebProperty(url='...')>
     """
 
-    def __init__(self, credentials: json = None):
-        if credentials is None:
-            raise Exception("A credential JSON object is required.\nClass can't be initialised.")
-        
+    def __init__(self, credentials: str):
+        if not credentials:
+            raise Exception("A credential JSON object is required.\n\
+                            Class can't be initialised.")
+
         self.service = self.__authenticate(credentials)
         self._webproperties = None
-        
-    def __authenticate(self, credentials: json):
-        cred = client.OAuth2Credentials(**credentials)
-        
+
+    def __authenticate(self, credentials: str):
+        self.cred = client.OAuth2Credentials(**credentials)
+
         return discovery.build(
             serviceName="webmasters",
             version="v3",
-            credentials=cred,
+            credentials=self.cred,
             cache_discovery=False,
         )
 
@@ -48,13 +49,13 @@ class Account:
         A list of all web properties associated with this account. You may
         select a specific web property using an index or by indexing the
         account directly with the properties exact URI.
-        
+
         Usage:
         >>> account.webproperties[0]
         <gsc_wrapper.account.WebProperty(url='...')>
         """
         if self._webproperties is None:
-            web_properties = self.service.sites().list().execute().get('siteEntry', [])  
+            web_properties = self.service.sites().list().execute().get('siteEntry', [])
             self._webproperties = [WebProperty(raw, self) for raw in web_properties]
 
         return self._webproperties
@@ -62,7 +63,7 @@ class Account:
     def __getitem__(self, item):
         if self._webproperties is None:
             self._webproperties = self.webproperties()
-            
+
         if isinstance(item, str):
             properties = [p for p in self._webproperties if p.url == item]
             web_property = properties[0] if properties else None
@@ -72,7 +73,7 @@ class Account:
         return web_property
 
     def __repr__(self):
-        return f"<gsc_wrapper.account(credentials='{self.cred}')>"
+        return f"<gsc_wrapper.account(credentials='{self.cred.client_id}')>"
 
 
 class WebProperty:
