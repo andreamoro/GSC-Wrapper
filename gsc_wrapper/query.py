@@ -370,15 +370,15 @@ class Query:
     def __(self, dimension: enums.dimension, expression: str):
         """Overloaded method to remove the dimension filter."""
         self.__filter_remove(self.raw.get('dimensionFilterGroups'),
-                             dimension.value,
-                             expression)
+                dimension.value,
+                expression)
 
     @filter_remove.register
     def __(self, country: enums.country):
         """Overloaded method to remove the country filter."""
         self.__filter_remove(self.raw.get('dimensionFilterGroups'),
-                             'country', 
-                             country)
+                'country',
+                country)
 
     def limit(self, *limit):
         """
@@ -387,8 +387,8 @@ class Query:
 
         Args:
             *limit (int): The maximum number of rows to return.
-                          Whenever two values are provided, these will be
-                          interpreted as the lower and higher bounds.
+                Whenever two values are provided, these will be
+                interpreted as the lower and higher bounds.
 
         Returns:
             `gsc_wrapper.query.Query`
