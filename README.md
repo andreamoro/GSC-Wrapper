@@ -134,4 +134,8 @@ or
     report.to_disk()
 ```
 
+### Retrieving persisted information
+To reload information previously persisted, it is possible to resource on two different methods: `from_disk` and `from_datastream`. Both of them returns a `Report` object that can be consumed as the one returned on a live query.
+
+
 At present, there is no data compression mechanism, no third-party libraries, and no database saving logic. For more complex requirements, additional code has to be written independently.
