@@ -497,7 +497,7 @@ class Query:
 
         Returns:
             `gsc_wrapper.query.Query`
-            
+
         Usage:
             >>> site.query.range(startDate='2022-10-18', days=1, months=0)
             <gsc_wrapper.query.Query(...)>
@@ -871,8 +871,8 @@ class Report:
 
         if data:
             data = pickle.loads(data)
-            return cls(data[0].get('url'),
-                        data[0].get('query'),
+            return cls(data[0]['url'],
+                        data[0]['query'],
                         data[1])
 
         return None

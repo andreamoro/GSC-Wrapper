@@ -26,15 +26,15 @@ class Account:
     <gsc_wrapper.account.WebProperty(url='...')>
     """
 
-    def __init__(self, credentials: str):
+    def __init__(self, credentials: dict):
         if not credentials:
             raise Exception("A credential JSON object is required.\n\
                             Class can't be initialised.")
 
         self.service = self.__authenticate(credentials)
-        self._webproperties = None
+        self._webproperties: Type['WebProperty'] = None
 
-    def __authenticate(self, credentials: str):
+    def __authenticate(self, credentials: dict):
         self.cred = client.OAuth2Credentials(**credentials)
 
         return discovery.build(
@@ -78,9 +78,8 @@ class Account:
 
 class WebProperty:
     """
-    in Google Search Console. You will use a web property
-    A web property is a particular website you're tracking
-    to make your Search Analytics queries.
+    A web property is a website tracked in Google Search Console
+    that can be queried via the Search Analytics.
     Usage:
     >>> webproperty = account[www_webproperty_com]
     >>> webproperty.query.range(start='today', days=-7).dimension('date').get()
