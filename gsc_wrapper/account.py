@@ -1,7 +1,5 @@
-from typing import Type
-
 from googleapiclient import discovery
-from oauth2client import client
+from google.oauth2.credentials import Credentials
 
 from .query import Query
 
@@ -28,23 +26,33 @@ class Account:
 
     def __init__(self, credentials: dict):
         if not credentials:
-            raise Exception("A credential JSON object is required.\n\
-                            Class can't be initialised.")
+            raise Exception(
+                "A credential JSON object is required.\n\
+                    Class can't be initialised."
+            )
 
-        self.service = self.__authenticate(credentials)
-        self._webproperties: Type['WebProperty'] = None
+        self.service: discovery.Resource = self.__authenticate(credentials)
 
-    def __authenticate(self, credentials: dict):
-        self.cred = client.OAuth2Credentials(**credentials)
+    def __post_init__(self):
+        self._webproperties: list[WebProperty] = []
 
-        return discovery.build(
-            serviceName="webmasters",
-            version="v3",
-            credentials=self.cred,
-            cache_discovery=False,
-        )
+    def __authenticate(self, credentials: dict) -> discovery.Resource:
+        self.cred = Credentials(**credentials)
 
-    def webproperties(self) -> Type['WebProperty']:
+        API_SERVICE_NAME = "searchconsole"
+        API_VERSION = "v1"
+
+        try:
+            return discovery.build(
+                API_SERVICE_NAME, API_VERSION, credentials=self.cred
+            )
+        except Exception as e:
+            raise Exception(
+                f"An errorr occurred during the authentication\
+                            process.\n{e}"
+            )
+
+    def webproperties(self) -> list["WebProperty"]:
         """
         A list of all web properties associated with this account. You may
         select a specific web property using an index or by indexing the
@@ -55,7 +63,7 @@ class Account:
         <gsc_wrapper.account.WebProperty(url='...')>
         """
         if self._webproperties is None:
-            web_properties = self.service.sites().list().execute().get('siteEntry', [])
+            web_properties = self.service.sites().list().execute().get("siteEntry", [])
             self._webproperties = [WebProperty(raw, self) for raw in web_properties]
 
         return self._webproperties
@@ -80,6 +88,7 @@ class WebProperty:
     """
     A web property is a website tracked in Google Search Console
     that can be queried via the Search Analytics.
+
     Usage:
     >>> webproperty = account[www_webproperty_com]
     >>> webproperty.query.range(start='today', days=-7).dimension('date').get()
@@ -87,17 +96,17 @@ class WebProperty:
     """
 
     permission_levels = {
-        'siteFullUser': 1,
-        'siteOwner': 2,
-        'siteRestrictedUser': 3,
-        'siteUnverifiedUser': 4
+        "siteFullUser": 1,
+        "siteOwner": 2,
+        "siteRestrictedUser": 3,
+        "siteUnverifiedUser": 4,
     }
 
     def __init__(self, raw, account: Account):
         self.account = account
         self.raw = raw
-        self.url = raw['siteUrl']
-        self.permission = raw['permissionLevel']
+        self.url = raw["siteUrl"]
+        self.permission = raw["permissionLevel"]
         self.query = Query(self)
 
     def __eq__(self, other):
@@ -106,4 +115,5 @@ class WebProperty:
         return False
 
     def __repr__(self):
-        return f"<gsc_wrapper.account.WebProperty(url='{self.url}', permission='{self.permission}')>"
+        return f"<gsc_wrapper.account.WebProperty(url='{self.url}', "\
+               f"permission='{self.permission}')>"
