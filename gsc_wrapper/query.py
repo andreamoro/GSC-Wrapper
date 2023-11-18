@@ -7,11 +7,10 @@ import googleapiclient.errors
 from dateutil.relativedelta import relativedelta
 
 from dispatcher import dispatcher
-from gsc_wrapper import enums, account
-import gsc_wrapper
-# from gsc_wrapper.account import WebProperty
 
-# from gsc_wrapper.account import WebProperty
+from gsc_wrapper import query
+from gsc_wrapper import enums
+from gsc_wrapper import account
 
 
 class Query:
@@ -23,31 +22,38 @@ class Query:
     * `dimension` to specify the dimensions you would like report on.
       A value between:
         - country,
-        - device, 
+        - device,
         - page,
-        - query, 
+        - query,
         - searchAppearance: this cannot be combined with anything else, and
           the aggregation type has to be "By Page"
     * `filter` to specify which rows to filter by.
     * `limit` to specify a subset of results.
 
+
     Usage:
-    >>> site.query.range(startDate='2022-11-10', days=-7, months=0)\\
+    >>> query = Query(site)
+    >>> query.range(startDate='2022-11-10', days=-7, months=0)\\
             .dimension(gsc_wrapper.dimension.DATE).get()
     <gsc_wrapper.query.Report(rows=...)>
 
-    >>> query = site.query.range(startDate='2022-11-10', days=-7, months=0)\\
-    ...                   .dimension(gsc_wrapper.dimension.DATE, gsc_wrapper.dimension.QUERY)\\
-    ...                   .filter('query', 'dress', 'contains')\\
-    ...                   .filter('page', '/womens-clothing/', 'contains')\\
-    ...                   .limit(20000)
-    >>> query.get()
+    >>> query = Query(site)
+    >>> query = query.range(startDate='2022-11-10', days=-7, months=0)\\
+    ...              .dimension(gsc_wrapper.dimension.DATE,
+    ...                         gsc_wrapper.dimension.QUERY)\\
+    ...              .filter('query', 'dress', 'contains')\\
+    ...              .filter('page', '/womens-clothing/', 'contains')\\
+    ...              .limit(20000)
+    >>> data = query.get()
     <gsc_wrapper.query.Report(rows=...)>
     """
 
     _lock = 0
 
-    def __init__(self, webproperty: Type["account.WebProperty"]):
+    def __init__(self, webproperty: account.WebProperty | None):
+        if not webproperty:
+            raise TypeError("A Webproperty is required prior querying data.")
+
         self.webproperty = webproperty
         self._startDate = date.today() - relativedelta(days=2)
         self._endDate = date.today() - relativedelta(days=1)
@@ -58,6 +64,14 @@ class Query:
             "aggregationType": "auto",
         }
         self.limit(25000)
+
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.raw == other.raw
+        return False
+
+    def __repr__(self):
+        return f"<gsc_wrapper.query.Query({self.raw})>"
 
     @property
     def startDate(self) -> date:
@@ -80,6 +94,7 @@ class Query:
         """Return a new query filtering by fresh (not finalized) data or
         full-state data.
 
+
         Args:
             data_state (gsc_wrapper.data_state):
                 The data_state you would like to use.
@@ -91,6 +106,7 @@ class Query:
             `gsc_wrapper.query.Query`
 
         Usage:
+            >>> query = Query(site)
             >>> query.data_state(gsc_wrapper.data_state.FINAL)
             <gsc_wrapper.query.Query(...)>
         """
@@ -102,7 +118,8 @@ class Query:
             raise ValueError("Data State argument does not match the expected type.")
 
         # self.raw["dataState"] = data_state
-        self.raw = self.raw | {"dataState": data_state}
+        # self.raw.update({"dataState": data_state})
+        self.raw |= {"dataState": data_state}
 
         return self
 
@@ -110,8 +127,9 @@ class Query:
         self,
         *dimensions: enums.dimension | list[enums.dimension] | tuple[enums.dimension],
     ):
-        """
-        Return a query that fetches the specified dimensions.
+        """Return a query that fetches the specified dimensions.
+
+
         Args:
             *dimensions(enums.dimension):
                 Dimensions you would like to report on.
@@ -126,20 +144,21 @@ class Query:
             `gsc_wrapper.query.Query`
 
         Usage:
-            >>> site.query.dimension(dimension.DATE, dimension.PAGE)
+            >>> query = Query(site)
+            >>> query.dimension(dimension.DATE, dimension.PAGE)
             <gsc_wrapper.query.Query(...)>
         """
 
         if isinstance(dimensions, enums.dimension):
             # self.raw["dimensions"] = dimensions.value
-            self.raw = self.raw | {"dimensions": dimensions.value}
+            self.raw |= {"dimensions": dimensions.value}
         elif type(dimensions) is list or tuple:
             # self.raw["dimensions"] = [
             #     v.value
             #     for _, v in enumerate(dimensions)
             #     if isinstance(v, enums.dimension)
             # ]
-            self.raw = self.raw | {
+            self.raw |= {
                 "dimensions": [
                     v.value
                     for _, v in enumerate(dimensions)
@@ -181,7 +200,6 @@ class Query:
 
     def __filter_build(self, dimension: str, expression: str, operator: str) -> dict:
         # Private method to build the filter with the given values
-
         # Enforcing the group_type as no other options are allowed at present
         group_type = "and"
 
@@ -196,32 +214,37 @@ class Query:
         return filter_group
 
     @overload
-    def filter(self, country: enums.country, operator: enums.operator, append: bool):
+    def filter(
+        self,
+        country: enums.country,
+        operator: enums.operator = enums.operator.EQUALS,
+        append: bool = False,
+    ):
         """Return a query that filters rows by the specified country.
+
 
         Args:
             country  (gsc_wrapper.country): The country you would like to
                 filter on.
-            operator (str)                : The operator you would like to use
-                to filter.
+            operator (str) : The operator you would like to use to filter.
                 Possible values are
                 - equals (default)
                 - contains
                 - notContains
                 - includingRegex
                 - excludingRegex
-            append   (bool)               : Delete a filter with the same key
-                if it exists.
+            append   (bool) : Delete a filter with the same key if it exists.
                 Can be optional, hence False.
 
         Returns:
             `gsc_wrapper.query.Query`
 
         Usage:
-            >>> site.query.filter(country.ITALY, operator.EQUAL)
+            >>> query = Query(site)
+            >>> query.filter(country.ITALY, operator.EQUAL)
             <gsc_wrapper.query.Query(...)>
 
-            >>> site.query.filter(country=country.UNITED_KINGDOM,
+            >>> query.filter(country=country.UNITED_KINGDOM,
                 operator.NOT_CONTAINS)
             <gsc_wrapper.query.Query(...)>
         """
@@ -232,8 +255,8 @@ class Query:
         self,
         dimension: enums.dimension,
         expression: str,
-        operator: enums.operator,
-        append: bool,
+        operator: enums.operator = enums.operator.EQUALS,
+        append: bool = False,
     ):
         """Return a query that filters rows by the specified filter.
 
@@ -255,11 +278,12 @@ class Query:
             `gsc_wrapper.query.Query`
 
         Usage:
-            >>> site.query.filter(dimension=dimension.PAGE, expression='/blog',
+            >>> query = Query(site)
+            >>> query.filter(dimension=dimension.PAGE, expression='/blog',
                 operator=operator.CONTAINS)
             <gsc_wrapper.query.Query(...)>
 
-            >>> site.query.filter(dimension.PAGE, '/blog/?$',
+            >>> query.filter(dimension.PAGE, '/blog/?$',
                 operator.INCLUDING_REGEX)
             <gsc_wrapper.query.Query(...)>
         """
@@ -267,7 +291,10 @@ class Query:
 
     @dispatcher
     def filter(self):
-        raise NotImplementedError("Method not implementated on purpose.")
+        """Method not implementated as a fallback to warn developers."""
+        raise NotImplementedError(
+            "The required method signature is not implemented yet."
+        )
 
     @filter.register
     def __(
@@ -285,8 +312,9 @@ class Query:
         else:
             raise ValueError("Dimension argument does not match the expected type.")
 
-        # SEARCH_APPEARANCE is a dimension that can be used only at a "metric" level
-        # Prevent the query to return errors by not doing anything
+        # SEARCH_APPEARANCE is a dimension that can be used only at
+        # a "metric" level.
+        # Prevent the query to return errors by not doing anything.
         if enums.dimension.SEARCH_APPEARANCE.value in dimension:
             return self
 
@@ -294,7 +322,10 @@ class Query:
         if isinstance(operator, enums.operator):
             _operator: str = operator.value
         else:
-            raise ValueError("Operator argument does not match the expected type.")
+            raise ValueError(
+                "Operator argument does not match the \
+                             expected type."
+            )
 
         # Remove the existing filter if it has been previously used
         if not append:
@@ -385,6 +416,7 @@ class Query:
 
     @dispatcher
     def filter_remove(self):
+        """Method not implementated as a fallback to warn developers."""
         raise NotImplementedError("Method not implementated on purpose.")
 
     @filter_remove.register
@@ -427,7 +459,7 @@ class Query:
             start = 0
             maximum = limit[0]
 
-        self.raw = self.raw | {
+        self.raw |= {
             "startRow": start,
             "rowLimit": 25000 if maximum > 25000 else maximum,
         }
@@ -447,7 +479,9 @@ class Query:
             `gsc_wrapper.query.Query`
 
         Usage:
-            >>> site.query.range(startDate=date(2022, 10, 10), startDate=date(2022, 11, 10))
+            >>> query = Query(site)
+            >>> query.range(startDate=date(2022, 10, 10),
+                            endDate=date(2022, 11, 10))
             <gsc_wrapper.query.Query(...)>
         """
         ...
@@ -477,6 +511,7 @@ class Query:
         If months is negative the start and end date will be adjusted
         accordingly.
 
+
         Args:
             startDate (date): Query start date.
             days      (int) : The number of days to add or substract from the
@@ -489,11 +524,12 @@ class Query:
             `gsc_wrapper.query.Query`
 
         Usage:
-            >>> site.query.range(startDate=date(2022, 10, 10),
+            >>> query = Query(site)
+            >>> query.range(startDate=date(2022, 10, 10),
                 days=0, months=1)
             <gsc_wrapper.query.Query(...)>
 
-            >>> site.query.range(date(2022, 10, 10), 0, -1)
+            >>> query.range(date(2022, 10, 10), 0, -1)
             <gsc_wrapper.query.Query(...)>
         """
         ...
@@ -520,10 +556,11 @@ class Query:
             `gsc_wrapper.query.Query`
 
         Usage:
-            >>> site.query.range(startDate='2022-10-18', days=1, months=0)
+            >>> query = Query(site)
+            >>> query.range(startDate='2022-10-18', days=1, months=0)
             <gsc_wrapper.query.Query(...)>
 
-            >>> site.query.range('2022-10-18', -1, 0)
+            >>> query.range('2022-10-18', -1, 0)
             <gsc_wrapper.query.Query(...)>
         """
         ...
@@ -549,10 +586,9 @@ class Query:
 
         self._startDate = startDate
         self._endDate = endDate
-
-        self.raw = self.raw | {
+        self.raw |= {
             "startDate": startDate.isoformat(),
-            "endDate": endDate.isoformat(),
+            "endDate": endDate.isoformat()
         }
 
         return self
@@ -569,7 +605,7 @@ class Query:
         months version to build the end date."""
 
         if startDate == "":
-            startDate = date.today()
+            startDate = str(date.today())
 
         try:
             return self.range.register[("date", "int", "int")](
@@ -611,6 +647,7 @@ class Query:
         """Return a new query that filters for the specified search type.
         This can be seen as a metric.
 
+
         Args:
             search_type (gsc_wrapper.search_type): The search type you would
             like to report on.
@@ -626,16 +663,20 @@ class Query:
         if isinstance(search_type, enums.search_type):
             search_type = search_type.value
         else:
-            raise ValueError("Search Type argument does not match the expected type.")
+            raise ValueError(
+                "Search Type argument does not match the \
+                             expected type."
+            )
 
-        self.raw = self.raw | {"type": search_type}
+        # self.raw |= {"type": search_type}
+        self.raw.setdefault("type", str(search_type))
 
         return self
 
-    def get(self) -> "Report":
+    def get(self) -> Type["query.Report"]:
         """Return the full batch of data by processing the constructed query
         and invoking the API.
-        It returns the dataset in a Report object.
+        It returns a Report object containing the extracted dataset.
 
         Returns:
             `gsc_wrapper.query.Report`
@@ -684,22 +725,21 @@ class Query:
             self.__filter_remove(self.raw.get("dimensionFilterGroups"), "query", "ALL")
 
     def execute(self):
-        """Invoke the API to process the query with the given parameters,
-        returning a response containing the raw data.
+        """Invoke the API to query the account and obtain the raw data.
         Set the boundaries with the `limit` method to extract a specific
         subset.
 
         When a larger dataset is expected the get() method should be used
         so the cursor approach kicks-in.
         """
-        url = self.webproperty.url
+        # url = self.webproperty.url
         self.__validate_query()
 
         try:
             self._wait()
             response = (
                 self.webproperty.account.service.searchanalytics()
-                .query(siteUrl=url, body=self.raw)
+                .query(siteUrl=self.webproperty.url, body=self.raw)
                 .execute()
             )
 
@@ -717,43 +757,38 @@ class Query:
 
         return wait
 
-    def __eq__(self, other):
-        if isinstance(self, other.__class__):
-            return self.raw == other.raw
-        return False
-
-    def __repr__(self):
-        return f"<gsc_wrapper.query.Query({self.raw})>"
-
 
 class Report:
-    """
-    Unpack the raw data previously queried via the Query class into a report 
-    object ready to be consumed. The class does not execute any query directly. 
+    """Unpack the raw data previously queried via the Query class into a report
+    object ready to be consumed. The class does not execute any query directly.
     A Report can be explicitly created using the `Query.get()` method.
 
+
     Args
-        url   (str) : The site being queried.
-                This is stored for reference only.
+        url    (str) : The site being queried, stored for reference.
         query (dict) : The dictionary containing the query used
-                to generate the report.
-                This is stored for reference only.
-        raw (dict) : The raw data queried via the Query class.
+            to generate the report, stored for reference.
+        raw   (dict) : The raw data queried via the Query class.
+
 
     Usage:
-    >>> report = site.query.range(startDate=date.today(), days=1, months=0)\
+    >>> site = account["www.test1.com"]
+    >>> query = gsc_wrapper.Query(site)
+    >>> report = query.range(startDate=date.today(), days=1, months=0)\
                     .dimension(gsc_wrapper.dimension.DATE).get()
     >>> report
     <gsc_wrapper.query.Report(rows=...)>
 
-    >>> data = site.query.filter(country=gsc_wrapper.country.ITALY).execute()
+
+    >>> data = query.filter(country=gsc_wrapper.country.ITALY).execute()
     >>> report = gsc_wrapper.Report(site.url, site.query.raw, data.get('rows'))
     >>> report
     <gsc_wrapper.query.Report(rows=...)>
 
+
     You can access the data using:
-    >>> report = site.query.range(startDate=date.today(), days=1, months=0)\
-                     .dimension(gsc_wrapper.dimension.DATE).get()
+    >>> report = query.range(startDate=date.today(), days=1, months=0)\
+            .dimension(gsc_wrapper.dimension.DATE).get()
     >>> report.rows
     [Row(...), ..., Row(...)]
     """
@@ -781,11 +816,20 @@ class Report:
         self.raw = raw
         self.append(raw)
 
-    def append(self, raw):
-        for row in raw:
-            row = row.copy()
-            dimensions = dict(zip(self.dimensions, row.pop("keys", [])))
-            self.rows.append(self.row(**row, **dimensions))
+    def __iter__(self):
+        return iter(self.rows)
+
+    def __getitem__(self, key):
+        return self.rows[key]
+
+    def __contains__(self, item):
+        return item in self.rows
+
+    def __len__(self):
+        return len(self.rows)
+
+    def __repr__(self):
+        return f"<gsc_wrapper.query.Report(rows={len(self)})>"
 
     @property
     def first(self):
@@ -801,20 +845,11 @@ class Report:
 
         return self.rows[-1]
 
-    def __iter__(self):
-        return iter(self.rows)
-
-    def __getitem__(self, key):
-        return self.rows[key]
-
-    def __contains__(self, item):
-        return item in self.rows
-
-    def __len__(self):
-        return len(self.rows)
-
-    def __repr__(self):
-        return f"<gsc_wrapper.query.Report(rows={len(self)})>"
+    def append(self, raw):
+        for row in raw:
+            row = row.copy()
+            dimensions = dict(zip(self.dimensions, row.pop("keys", [])))
+            self.rows.append(self.row(**row, **dimensions))
 
     def to_dict(self):
         return [dict(row._asdict()) for row in self.rows]
@@ -862,14 +897,15 @@ class Report:
             if unique_path != "":
                 with open(unique_path, "wb") as f:
                     pickle.dump(data, f)
-                    return unique_path
+                    return str(unique_path)
             else:
                 return None
-        except:
+        except OSError as e:
+            print(f"{type(e)}: {e}")
             return None
 
     @classmethod
-    def from_disk(cls, filename: str) -> "Report":
+    def from_disk(cls, filename: str) -> Type["Report"] | None:
         """Load a file from the disk a previously saved report stored
         with the GSC Wrapper class.
 
@@ -882,14 +918,18 @@ class Report:
         import pickle
 
         if filename != "":
-            with open(filename, "rb") as f:
-                data = pickle.load(f)
-                return cls(data[0].get("url"), data[0].get("query"), data[1])
+            try:
+                with open(filename, "rb") as f:
+                    data = pickle.load(f)
+                    return cls(data[0].get("url"), data[0].get("query"), data[1])
+            except OSError as e:
+                print(f"{type(e)}: {e}")
+                return None
 
         return None
 
     @classmethod
-    def from_datastream(cls, data: bytes) -> "Report":
+    def from_datastream(cls, data: bytes) -> Type["Report"] | None:
         """Rebuild the report with the GSC Wrapper class using
         the data stream passed in the argument.
 
