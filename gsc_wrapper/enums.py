@@ -1,13 +1,15 @@
 from enum import Enum, EnumMeta
 
-class MyEnumMeta(EnumMeta): 
-    def __contains__(cls, item): 
+
+class MyEnumMeta(EnumMeta):
+    def __contains__(cls, item):
         try:
             cls(item)
         except ValueError:
             return False
         else:
             return True
+
 
 class country(Enum, metaclass=MyEnumMeta):
     AFGHANISTAN = "AFG"
@@ -288,6 +290,47 @@ class operator(Enum, metaclass=MyEnumMeta):
     EQUALS = "equals"
     NOT_EQUALS = "not_equal"
     CONTAINS = "contains"
-    NOT_CONTAINS = "not_contains" 
+    NOT_CONTAINS = "not_contains"
     INCLUDING_REGEX = "including_regex"
-    EXCLUDING_REGEX = "excluding_regex" 
+    EXCLUDING_REGEX = "excluding_regex"
+
+
+class verdict(Enum, metaclass=MyEnumMeta):
+    VERDICT_UNSPECIFIED = "unspecified"
+    PASS = "Page is in GSC"
+    FAIL = "Page is not in GSC"
+    NEUTRAL = "Excluded from GSC"
+
+
+class robots_txt_state(Enum, metaclass=MyEnumMeta):
+    ROBOTS_TXT_STATE_UNSPECIFIED = "State unknown, page not fetched"
+    ALLOWED = "Allowed"
+    DISALLOWED = "Disallowed"
+
+
+class indexing_state(Enum, metaclass=MyEnumMeta):
+    INDEXING_STATE_UNSPECIFIED = "State unknown"
+    INDEXING_ALLOWED = "Indexing allowed"
+    BLOCKED_BY_META_TAG = "Noindex detected in robots meta tag"
+    BLOCKED_BY_HTTP_HEADER = "Noindex detected in X-Robots-Tag"
+
+
+class page_fetch_state(Enum, metaclass=MyEnumMeta):
+    PAGE_FETCH_STATE_UNSPECIFIED = "State unknown"
+    SUCCESSFUL = "Success"
+    BLOCKED_ROBOTS_TXT = "Blocked by robots.txt"
+    REDIRECT_ERROR = "Redirection error"
+    ACCESS_DENIED = "Access denied (401)"
+    NOT_FOUND = "Page Not found (404)"
+    ACCESS_FORBIDDEN = "Access forbidden (403)"
+    BLOCKED_4XX = "Other 4xx issue (not 403, 404)"
+    SOFT_404 = "Soft 404"
+    SERVER_ERROR = "Server error (5xx)"
+    INTERNAL_CRAWL_ERROR = "Internal error"
+    INVALID_URL = "Invalid URL"
+
+
+class crawler_agent(Enum, metaclass=MyEnumMeta):
+    CRAWLING_USER_AGENT_UNSPECIFIED = "Unknown"
+    DESKTOP = "Desktop"
+    MOBILE = "Mobile"

@@ -1,5 +1,6 @@
 from gsc_wrapper.account import Account, WebProperty
 from gsc_wrapper.query import Query, Report
+from gsc_wrapper.inspection import InspectURL
 from gsc_wrapper.enums import country, data_state, dimension, search_type, operator
 
 __all__ = (
@@ -7,6 +8,7 @@ __all__ = (
     "WebProperty",
     "Query",
     "Report",
+    "InspectURL",
     "country",
     "data_state",
     "dimension",
