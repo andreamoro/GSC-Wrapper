@@ -1,17 +1,19 @@
+from __future__ import annotations
 from googleapiclient import discovery
 from google.oauth2.credentials import Credentials
 
-from .query import Query
-
 
 class Account:
-    """
-    An account can be associated with a number of web
+    """An account can be associated with a number of web
     properties.
-    You should navigate to a web property to run queries.
+    You should navigate to a web property to run queries
+    or to pull information about the indexation status
+    of a given URL.
+
 
     Args:
         service
+
 
     Usage:
     >>> import gsc_wrapper
@@ -32,8 +34,6 @@ class Account:
             )
 
         self.service: discovery.Resource = self.__authenticate(credentials)
-
-    def __post_init__(self):
         self._webproperties: list[WebProperty] = []
 
     def __authenticate(self, credentials: dict) -> discovery.Resource:
@@ -44,7 +44,9 @@ class Account:
 
         try:
             return discovery.build(
-                API_SERVICE_NAME, API_VERSION, credentials=self.cred
+                API_SERVICE_NAME,
+                API_VERSION,
+                credentials=self.cred
             )
         except Exception as e:
             raise Exception(
@@ -55,21 +57,22 @@ class Account:
     def webproperties(self) -> list["WebProperty"]:
         """
         A list of all web properties associated with this account. You may
-        select a specific web property using an index or by indexing the
-        account directly with the properties exact URI.
+        select a specific web property using an index or by exact URI.
+
 
         Usage:
         >>> account.webproperties[0]
         <gsc_wrapper.account.WebProperty(url='...')>
         """
-        if self._webproperties is None:
+        if len(self._webproperties) == 0:
             web_properties = self.service.sites().list().execute().get("siteEntry", [])
-            self._webproperties = [WebProperty(raw, self) for raw in web_properties]
+            self._webproperties = [WebProperty(raw, self)
+                                   for raw in web_properties]
 
         return self._webproperties
 
-    def __getitem__(self, item):
-        if self._webproperties is None:
+    def __getitem__(self, item) -> WebProperty | None:
+        if len(self._webproperties) == 0:
             self._webproperties = self.webproperties()
 
         if isinstance(item, str):
@@ -107,7 +110,6 @@ class WebProperty:
         self.raw = raw
         self.url = raw["siteUrl"]
         self.permission = raw["permissionLevel"]
-        self.query = Query(self)
 
     def __eq__(self, other):
         if isinstance(self, other.__class__):
@@ -115,5 +117,7 @@ class WebProperty:
         return False
 
     def __repr__(self):
-        return f"<gsc_wrapper.account.WebProperty(url='{self.url}', "\
-               f"permission='{self.permission}')>"
+        return (
+            f"<gsc_wrapper.account.WebProperty(url='{self.url}', "
+            f"permission='{self.permission}')>"
+        )
