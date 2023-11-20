@@ -40,43 +40,43 @@ class InspectURL:
     @overload
     def add_url(self, url: str, overwrite: bool = False):
         """Add a URL to the inspectable collection.
+        The URL must be fully qualified and belong to the inspected
+        WebProperty.
 
 
         Args:
-            url  (str): A valid URL queryable via the WebProperty.
+            url  (str): The URL to be inspected and belonging to the
+            WebProperty.
 
         Returns:
             `gsc_wrapper.insepction.InspectURL`
 
         Usage:
-            # >>> site.query.filter(country.ITALY, operator.EQUAL)
-            # <gsc_wrapper.query.Query(...)>
-
-            # >>> site.query.filter(country=country.UNITED_KINGDOM,
-            #     operator.NOT_CONTAINS)
-            # <gsc_wrapper.query.Query(...)>
+            >>> inspect = InspectURL(site)
+            >>> inspect.add_url(url='https://www.mysite.com/')
+            <gsc_wrapper.inspection.InspectURL(...)>
         """
         ...
 
     @overload
-    def add_url(self, urls: list | tuple, overwrite: bool = False):
+    def add_url(self, urls: list, overwrite: bool = False):
         """Add a set of URLs to the inspectable collection.
+        URLs have to be fully qualified and belong to the inspected
+        WebProperty.
 
 
         Args:
-            urls  (list | tuple): The list of URLs to be inspected
+            urls  (list): The list of URLs to be inspected and belonging
+            to the WebProperty.
 
         Returns:
             `gsc_wrapper.inspection.InspectURL`
 
         Usage:
-            # >>> site.query.filter(dimension=dimension.PAGE, expression='/blog',
-            #     operator=operator.CONTAINS)
-            # <gsc_wrapper.query.Query(...)>
-
-            # >>> site.query.filter(dimension.PAGE, '/blog/?$',
-            #     operator.INCLUDING_REGEX)
-            # <gsc_wrapper.query.Query(...)>
+            >>> inspect = InspectURL(site)
+            >>> inspect.add_url(urls=['https://www.mysite.com/',
+                'https://www.mysite.com/blog'])
+            <gsc_wrapper.inspection.InspectURL(...)>
         """
         ...
 
@@ -108,25 +108,118 @@ class InspectURL:
             self._urls_bag += urls
 
         self._urls_to_inspect = len(self._urls_bag)
-        # prepare the JSON payload for the first query
+
+        # prepare the JSON payload so to have always one line to test
         self.raw |= {
             "inspectionUrl": urls[0],
             "siteUrl": self.webproperty.url,
         }
         return self
 
-    def execute(self):
-        """Invoke the API to query the account and obtain the raw data.
+    @overload
+    def remove_url(self, url: str):
+        """Remove a URL from the inspectable collection.
 
-        # Set the boundaries with the `limit` method to extract a specific
-        # subset.
+
+        Args:
+            url  (str): The URL to be removed.
+
+        Returns:
+            `gsc_wrapper.insepction.InspectURL`
+
+        Usage:
+            >>> inspect = InspectURL(site)
+            >>> inspect.remove_url(url='https://www.mysite.com/')
+            <gsc_wrapper.inspection.InspectURL(...)>
+        """
+        ...
+
+    @overload
+    def remove_url(self, urls: list):
+        """Remove a set of URLs from the inspectable collection.
+
+
+        Args:
+            urls  (list): The list of URLs to be removed.
+
+        Returns:
+            `gsc_wrapper.inspection.InspectURL`
+
+        Usage:
+            >>> inspect = InspectURL(site)
+            >>> inspect.remove_url(urls=['https://www.mysite.com/',
+                'https://www.mysite.com/blog'])
+            <gsc_wrapper.inspection.InspectURL(...)>
+        """
+        ...
+
+    @overload
+    def remove_url(self, index: int):
+        """Remove the URLs at the given position within the URLs bag.
+
+
+        Args:
+            index  (int): The index of URLs to be removed.
+
+        Returns:
+            `gsc_wrapper.inspection.InspectURL`
+
+        Usage:
+            >>> inspect = InspectURL(site)
+            >>> inspect.remove_url(index)
+            <gsc_wrapper.inspection.InspectURL(...)>
+        """
+        ...
+
+    @dispatcher
+    def remove_url(self):
+        """Method not implementated as a fallback to warn developers."""
+        raise NotImplementedError(
+            "The required method signature is not implemented yet."
+        )
+
+    @remove_url.register
+    def __(self, url: str):
+        if not isinstance(url, str):
+            raise ValueError("The supplied argument is not a string.")
+
+        try:
+            self._urls_bag.remove(url)
+            self.urls_to_inspect -= 1
+        except ValueError:
+            pass
+
+    @remove_url.register
+    def __(self, urls: list):
+        if not isinstance(urls, list):
+            raise ValueError("The supplied argument is not a list.")
+
+        while urls:
+            self.remove_url(urls.pop())
+
+    @remove_url.register
+    def __(self, index: int):
+        if not isinstance(index, int):
+            raise ValueError("The supplied argument is not an integer.")
+
+        if len(self._urls_bag) >= index:
+            del self._urls_bag[index]
+            self.urls_to_inspect -= 1
+        else:
+            raise ValueError("The supplied index is not in the URLs bag.")
+
+    def remove_all_urls(self):
+        """Remove all the URLs from the inspection bag.
+        """
+        self._urls_bag = []
+        self._urls_to_inspect = 0
+
+    def execute(self):
+        """Invoke the API to obtain the results raw data for the URLs tested.
 
         # When a larger dataset is expected the get() method should be used
         # so the cursor approach kicks-in.
         """
-
-        #### t.urlInspection().index().inspect(body=urltoinspect).execute()
-
         try:
             self._wait()
             response = (
@@ -141,7 +234,7 @@ class InspectURL:
 
         return response
 
-    def get(self, urls: list | str) -> Type["inspection.Report"]:
+    def get(self) -> Type["inspection.Report"]:
         """Return the full batch of data by processing the requested
         URL throught the API call.
         It returns a Report object containing the extracted dataset.
@@ -151,29 +244,19 @@ class InspectURL:
             `gsc_wrapper.inspection.Report`
 
         Usage:
-            >>> site.query.get()
-            <gsc_wrapper.query.Report(rows=...)>
+            >>> inspect = Inspection(site)
+            >>> inspect.get()
+            <gsc_wrapper.inspection.Report(rows=...)>
         """
-        # Convert a single URL into a list for code uniformity
-        if isinstance(urls, str):
-            urls_to_check = [urls]
-        else:
-            urls_to_check = urls
-
         raw_data = []
+        urls_to_check = self._urls_bag.copy()
         while urls_to_check:
             self.raw = {
                 "inspectedURL": urls_to_check.pop(),
                 "siteURL": self.webproperty.url,
             }
 
-            chunk = self.execute()
-
-            # if chunk.get("rows"):
-            raw_data += chunk.get("rows")
-            #     chunck_len = len(raw_data)
-            # else:
-            #     is_complete = True
+            raw_data += self.execute()
 
         # Report stores a copy of the query object for reference.
         # Overwriting the limit boundaries to have vibility on the
