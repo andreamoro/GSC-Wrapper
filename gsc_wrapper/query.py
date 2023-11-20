@@ -656,7 +656,8 @@ class Query:
             `gsc_wrapper.query.Query`
 
         Usage:
-            >>> site.uery.search_type(gsc_wrapper.search_type.WEB)
+            >>> query = Query(site)
+            >>> query.search_type(gsc_wrapper.search_type.WEB)
             <gsc_wrapper.query.Query(...)>
         """
         # Check for the right data type
@@ -665,7 +666,7 @@ class Query:
         else:
             raise ValueError(
                 "Search Type argument does not match the \
-                             expected type."
+                expected type."
             )
 
         # self.raw |= {"type": search_type}
@@ -682,7 +683,8 @@ class Query:
             `gsc_wrapper.query.Report`
 
         Usage:
-            >>> site.query.get()
+            >>> query = Query(site)
+            >>> query.get()
             <gsc_wrapper.query.Report(rows=...)>
         """
         raw_data = []
@@ -725,7 +727,7 @@ class Query:
             self.__filter_remove(self.raw.get("dimensionFilterGroups"), "query", "ALL")
 
     def execute(self):
-        """Invoke the API to query the account and obtain the raw data.
+        """Invoke the API to obtain the raw data as per the specified query.
         Set the boundaries with the `limit` method to extract a specific
         subset.
 
