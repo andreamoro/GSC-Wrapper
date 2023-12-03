@@ -2,7 +2,9 @@
 .editorconfig
 .python-version
 .vscode/*
+.idea/*
 build/*
+*.pck
 tests/config.ini
 gsc_wrapper.egg-info/dependency_links.txt
 gsc_wrapper.egg-info/PKG-INFO

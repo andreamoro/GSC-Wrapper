@@ -2,36 +2,76 @@
 
 [![License: GPL 3.0](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.txt)
 
+
 ## Package purpose and content
 
 `gsc_wrapper` is a package to take the pain out when working with the [Google Search
-Console](https://support.google.com/webmasters/answer/9128668) Search Analytics Query API. 
-It is written in Python and provides convenient features to make querying a site's search analytics data easier.
+Console](https://support.google.com/webmasters/answer/9128668) APIs. 
+It is written in Python and provides convenient features to easily query:
+- the [Search Analytics](https://developers.google.com/webmaster-tools/v1/api_reference_index#Search_analytics) data
+- the [Page Indexing](https://developers.google.com/webmaster-tools/v1/api_reference_index#Inspection_tools) data
 
-This wrapper is inspired (in fact partially replicates some parts) of [Josh Carty's wrapper](https://github.com/joshcarty/google-searchconsole). However, it also introduces fundamental changes to the logic and python coding, some are purely aestetical, others introduce modification that couldn't fit as project fork.  
 
-For more information, see below a description of the main modules along with a comparison with Carty's library.
+## Installation & Requirements
+
+Google Search Console Wrapper requires Python 3.7 or greater. At present the package is not distributed on any repository. 
+To use the package, download the code on your local machine then install using the following command:
+
+```bash
+    python -m pip install . 
+```
+
+BEWARE: GSC wrapper depends from another package of mine - [`multi-args-dispatcher`](https://github.com/andreamoro/Dispatcher) which has not yet distributed on a public repository. The installation package is setup to provision the file for you. 
+
+
+## Quickstart
+
+In order to work with this package the [prerequisites](https://developers.google.com/webmaster-tools/search-console-api-original/v3/prereqs) have to be fullfilled, which can be summarised as per the below:
+- At least one [Google Account](https://accounts.google.com/signup/v2/webcreateaccount) with at least one website registered.
+- Access to the [Google API console](https://console.cloud.google.com/apis/library/searchconsole.googleapis.com) - remember to save your credentials somewhere.
+
+After that, executing your first query is really straightforward as per the following example.
+
+_Example:_
+```python
+import gsc_wrapper
+
+credentials = {
+    ... # You need to implement the flow and credential logic separately
+} 
+
+account = gsc_wrapper.Account(credentials)
+site_list = account.webproperties()
+site = account[0] # or account['your qualified site name']
+query = gsc_wrapper.Query(site)
+data = query.filter(gsc_wrapper.country.ITALY)
+results = data.execute()
+```
+
 
 ### Authentication
-The authentication process is still managed via Google's library ([API discovery](https://github.com/googleapis/google-api-python-client)), but the flow is no longer managed inside the wrapper. 
+The authentication process is managed via the Google's library ([API discovery](https://github.com/googleapis/google-api-python-client)); however, the flow is not managed inside the wrapper. 
 
-Both the `client ID` and the `client secret` have to be generated or loaded, if any, but the implementation logic is now left to the developer. It comes with itself that there is no more functionality to persist the credentials in a token.
+Both the `client ID` and the `client secret` have to be generated and saved in a file containinig the OAuth 2.0 or generated on the fly with the authentication flow provided by Google's library. The implementation logic is left to the developer.
 
 While this might be seen as a regression, the externalisation is a feature design choice to allow a more flexible approach to source the Google's authentication token, whether this could be via a web-form approach or via a TUI.  
 
+
 ### Querying
-The core of this wrapper is based on the [`search analytics: query`](https://developers.google.com/webmaster-tools/v1/searchanalytics/query) API from Google, with which you can pull out details from your GSC (Google Search Console account).
-This class prepares the JSON payload to be queried and later consumed via the `Report` class. 
 
-As opposed to Carty's original work, this class now supports methods' overloading and acceptance of specific types of arguments from a declarative set of enumerations. In addition, any not-allowed permutation is now prevented on the basis of Google's most recent specifications.
-Lastly, the specification of a filter whose key has previously been used will automatically drop the previous condition and replace it with the new one unless the optional `append` parameter is set to `True`.
+#### Search Analytics
 
-Method cascading has been preserved to allow for more object-oriented API construction.
+The role of this class is to pull out details from your GSC (Google Search Console account) using the [`search analytics: query`](https://developers.google.com/webmaster-tools/v1/searchanalytics/query) API from Google. The work is inspired from [Josh Carty's wrapper](https://github.com/joshcarty/google-searchconsole), from which it inherits part of the logic; however, due to the extended code refactoring, branching the original project was nearly impossible.
+
+The basic principle of this class is to prepares the JSON payload to be consumed via the `Report` class. This class supports methods' overloading and acceptance of specific types of arguments from a declarative set of enumerations. In addition, any not-allowed permutation is now prevented on the basis of Google's most recent specifications.
+The specification of a filter whose key has previously been used will automatically drop the previous condition and replace it with the new one unless the optional `append` parameter is set to `True`.
+
+A method cascading is in place to allow for more object-oriented API construction.
 
 A report is automatically generated when the `get` method is recalled, in which case the full dataset is lazily returned.
-To limit the data to the first batch, use the `execute` method.
+To limit the data to the first batch, or to retrieve the raw data as pulled from the API, use the `execute` method.
 
-***Search Type*** can be used to segment the type of insights you want to retrive. If you don't use this method, the default value used will be **web**.
+***Search Type*** can be used to segment the type of insights you want to retrieve. If you don't use this method, the default value used will be **web**.
 
 _Example:_
 ```py
@@ -63,46 +103,20 @@ query.filter(dimension.PAGE, '/blog/?$', operator.INCLUDING_REGEX)
 For more plain English information about metrics and dimension, check the official [Google's guide](https://support.google.com/webmasters/answer/7576553).
 
 
-***Exploration.*** The account hierarchy can be traversed via the returned list of the webproperties (to which the  permission levels is shown). No significant changes here.
+***Exploration.*** The account hierarchy can be traversed via the returned list of the webproperties (to which the permission levels is shown).
 
 ***Exports.*** Clean JSON and pandas.DataFrame outputs so you can easily analyse your data in Python or Excel. Added the possibility to persist data into a Python's pickle file.
 
-## Installation & Requirements
 
-Google Search Console Wrapper requires Python 3.7 or greater. At present the package is not distributed on any repository. 
-To use the package, download the code on your local machine then install using the following command:
+#### Page Indexing
 
-```bash
-    python -m pip install . 
-```
+The role of this class is to pull out details from your GSC (Google Search Console account) using the [`URL Inspection: index.inspect`](https://developers.google.com/webmaster-tools/v1/urlInspection.index/inspect) API from Google. 
 
-BEWARE: GSC wrapper depends from another package of mine - [`multi-args-dispatcher`](https://github.com/andreamoro/Dispatcher) which has not yet distributed on a public repository. The installation package is setup to provision the file for you. 
+The basic principle of this class is to prepares the JSON payload to be consumed via the `Report` class implementing methods' overloading where appropriate to faciliate third party developers coding.
 
+A report is automatically generated when the `get` method is recalled, in which case the full dataset is lazily returned.
+To limit the data to the first batch, or to retrieve the raw data as pulled from the API, use the `execute` method.
 
-## Quickstart
-
-In order to work with this package you need to download and install locally my [Multi-Argument Dispatcher package](https://github.com/andreamoro/Dispatcher) and follow the [prerequisites](https://developers.google.com/webmaster-tools/search-console-api-original/v3/prereqs) have to be fullfilled, which can be summarised as per the below:
-- At least one [Google Account](https://accounts.google.com/signup/v2/webcreateaccount)
-- A website listed into the Google Search Console 
-- A project credential on Google's API system (remember to save your credentials somewhere)
-
-After that, executing your first query is really straightforward as per the following example.
-
-_Example:_
-```python
-import gsc_wrapper
-
-credentials = {
-    ... # You need to implement the flow and credential logic separately
-} 
-
-account = gsc_wrapper.Account(credentials)
-site_list = account.webproperties()
-site = account[0] # or account['your qualified site name']
-
-data = site.query.filter(gsc_wrapper.country.ITALY)
-results = data.execute()
-```
 
 ### Integration with Pandas DataFrame 
 If you wish to load your data directly into a [Pandas DataFrame](https://pandas.pydata.org/), this can be done contextually after the extraction. 
@@ -113,7 +127,8 @@ _Example:_
 report = data.to_dataframe()
 ```
 
-### Disk Persistance
+
+### Data Persistance
 There are situations where you might want to persist your data to query the same batch again and again.
 This comes in handy, especially if you want to preserve part of your daily query allowance.
 
@@ -134,8 +149,6 @@ or
     report.to_disk()
 ```
 
-### Retrieving persisted information
-To reload information previously persisted, it is possible to resource on two different methods: `from_disk` and `from_datastream`. Both of them returns a `Report` object that can be consumed as the one returned on a live query.
-
+Two corresponding methods have been made available to reload persisted information: `from_disk` and `from_datastream`. Both of them returns a `Report` object that can be consumed in the same way as the one returned on a live query.
 
 At present, there is no data compression mechanism, no third-party libraries, and no database saving logic. For more complex requirements, additional code has to be written independently.

@@ -7,15 +7,16 @@ name = "gsc_wrapper"
 authors = [
     {name = "Andrea Moro", email = "info@andreamoro.eu"},
 ]
-description = "A package to take the pain out when working with the Google Search Console Search Analytics Query API."
-version = "1.0.0"
+description = "A package to take the pain out when working with the Google Search Console API."
+version = "2.0.0"
 readme = "README.md"
 requires-python = ">=3.7"
 license = {text = "GNU-3"}
-keywords = ["google", "google search console", "gsc wrapper", "google wrapper", "wrapper"]
+keywords = ["google", "google search console", "gsc wrapper", "google wrapper", "wrapper", "search analytics", "page indexing", "google api"]
 dependencies = [
-    "oauth2client >= 4.1.3",
+    "google-auth-oauthlib >= 1.1.0",
     "google-api-python-client >= 2.0.0",
     "multi-args-dispatcher @ git+https://github.com/andreamoro/Dispatcher",
+    "python_dateutil >= 2.8.0"
 ]
 
