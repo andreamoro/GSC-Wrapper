@@ -59,15 +59,17 @@ class Account:
         A list of all web properties associated with this account. You may
         select a specific web property using an index or by exact URI.
 
-
-        Usage:
+        Examples
+        --------
         >>> account.webproperties[0]
         <gsc_wrapper.account.WebProperty(url='...')>
         """
         if len(self._webproperties) == 0:
             web_properties = self.service.sites().list().execute().get("siteEntry", [])
-            self._webproperties = [WebProperty(raw, self)
-                                   for raw in web_properties]
+            self._webproperties = [
+                WebProperty(raw, self)
+                for raw in web_properties
+            ]
 
         return self._webproperties
 
