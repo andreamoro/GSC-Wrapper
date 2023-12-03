@@ -1,37 +1,43 @@
+from __future__ import annotations
 import collections
 import time
 from datetime import date
-from typing import Type, overload
+from typing import Self, overload
 
 import googleapiclient.errors
 from dateutil.relativedelta import relativedelta
-
 from dispatcher import dispatcher
-
-from gsc_wrapper import query
-from gsc_wrapper import enums
-from gsc_wrapper import account
+from gsc_wrapper import enums, account
+from gsc_wrapper.util import Util
 
 
 class Query:
     """Returns the results for a given query against the
     Google Search Console - Search Analytics.
+    https://developers.google.com/webmaster-tools/v1/api_reference_index#Search_analytics
 
     The most important methods are:
+    * `execute` which ran a given query and returns all the possible results
+    * `get` which execute the query partitioning the results into small chunks
+        so not to overload the destination server.
+        The method returns a Report object.
+
+    There are also the following other methods with which it will be
+    possible to interact with the class:
     * `range` to specify a date range for your query.
     * `dimension` to specify the dimensions you would like report on.
-      A value between:
-        - country,
-        - device,
-        - page,
-        - query,
-        - searchAppearance: this cannot be combined with anything else, and
-          the aggregation type has to be "By Page"
+    A value between:
+    - country,
+    - device,
+    - page,
+    - query,
+    - searchAppearance: this cannot be combined with anything else, and
+        the aggregation type has to be "By Page"
     * `filter` to specify which rows to filter by.
     * `limit` to specify a subset of results.
 
-
-    Usage:
+    Examples
+    --------
     >>> query = Query(site)
     >>> query.range(startDate='2022-11-10', days=-7, months=0)\\
             .dimension(gsc_wrapper.dimension.DATE).get()
@@ -90,32 +96,39 @@ class Query:
         else:
             return _filters[0].get("filters", "")
 
-    def data_state(self, data_state: enums.data_state = enums.data_state.FINAL):
+    def data_state(
+            self,
+            data_state: enums.data_state = enums.data_state.FINAL
+    ):
         """Return a new query filtering by fresh (not finalized) data or
         full-state data.
 
+        Parameters
+        ----------
+        data_state : gsc_wrapper.data_state
+            The data_state you would like to use.
+            Possible values:
+            - 'FINAL' (default = d-1 backward),
+            - 'ALL' (finalised & fresh data).
 
-        Args:
-            data_state (gsc_wrapper.data_state):
-                The data_state you would like to use.
-                Possible values:
-                - 'FINAL' (default = d-1 backward),
-                - 'ALL' (finalised & fresh data).
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Returns:
-            `gsc_wrapper.query.Query`
-
-        Usage:
-            >>> query = Query(site)
-            >>> query.data_state(gsc_wrapper.data_state.FINAL)
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.data_state(gsc_wrapper.data_state.FINAL)
+        <gsc_wrapper.query.Query(...)>
         """
 
         # Check for the right data type
         if isinstance(data_state, enums.data_state):
             data_state = data_state.value
         else:
-            raise ValueError("Data State argument does not match the expected type.")
+            raise ValueError("Data State argument does not match the expected\
+                    type.")
 
         # self.raw["dataState"] = data_state
         # self.raw.update({"dataState": data_state})
@@ -129,24 +142,27 @@ class Query:
     ):
         """Return a query that fetches the specified dimensions.
 
+        Parameters
+        ----------
+        *dimensions : enums.dimension
+            Dimensions you would like to report on.
+            Possible values:
+            - country
+            - device
+            - page
+            - query
+            - SearchAppearance (can appear only on its own).
 
-        Args:
-            *dimensions(enums.dimension):
-                Dimensions you would like to report on.
-                Possible values:
-                - country
-                - device
-                - page
-                - query
-                - SearchAppearance (can appear only on its own).
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Returns:
-            `gsc_wrapper.query.Query`
-
-        Usage:
-            >>> query = Query(site)
-            >>> query.dimension(dimension.DATE, dimension.PAGE)
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.dimension(dimension.DATE, dimension.PAGE)
+        <gsc_wrapper.query.Query(...)>
         """
 
         if isinstance(dimensions, enums.dimension):
@@ -166,12 +182,15 @@ class Query:
                 ],
             }
         else:
-            raise ValueError("Dimension argument does not match the expected type.")
+            raise ValueError("Dimension argument doesn't match the\
+                    expected type.")
 
-        if enums.dimension.SEARCH_APPEARANCE in dimensions and len(dimensions) > 1:
+        if enums.dimension.SEARCH_APPEARANCE in dimensions \
+            and len(dimensions) > 1:
             # SEARCH_APPEARANCE cannot be combined with any other dimensions.
             # Remove it to prevent the executed query throwing an error.
-            self.raw.get("dimensions").remove(enums.dimension.SEARCH_APPEARANCE)
+            self.raw.get("dimensions")\
+                .remove(enums.dimension.SEARCH_APPEARANCE)
 
         return self
 
@@ -180,14 +199,19 @@ class Query:
         collection.
         The filter name is assumed to be the key item.
 
-        Args:
-            list       (list) : the filters collection
-            filter     (str)  : the ID of the filter to remove
-            expression (str)  : the corresponding matching value.
-                If ALL, all filters of the same type will be removed.
+        Parameters
+        ----------
+        list : list
+            the filters collection
+        filter : str
+            the ID of the filter to remove
+        expression : str
+            The corresponding matching value.
+            If ALL, all filters of the same type will be removed.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
         """
         if list is not None:
             for item in list[::-1]:
@@ -198,17 +222,37 @@ class Query:
                     ):
                         list.remove(item)
 
-    def __filter_build(self, dimension: str, expression: str, operator: str) -> dict:
-        # Private method to build the filter with the given values
-        # Enforcing the group_type as no other options are allowed at present
-        group_type = "and"
+    def __filter_build(
+            self,
+            dimension: str,
+            expression: str,
+            operator: str
+    ) -> dict:
+        """Private method to build the filter conditions to be applied to
+        a given query.
 
+        Group_type is currently hardcoded as no other options are allowed
+        at present.
+
+        Parameters
+        ----------
+            dimension: str
+                The dimention to include in the filter.
+            expression: str
+                The value to use during the filtering operation
+            operator: str
+                The condition to apply when filtering.
+
+        Returns
+        -------
+            dict
+        """
+        group_type = "and"
         dimension_filter = {
             "dimension": dimension,
             "expression": expression,
             "operator": operator,
         }
-
         filter_group = {"groupType": group_type, "filters": [dimension_filter]}
 
         return filter_group
@@ -220,33 +264,39 @@ class Query:
         operator: enums.operator = enums.operator.EQUALS,
         append: bool = False,
     ):
-        """Return a query that filters rows by the specified country.
+        """Return a Query instance with a filter aimed at limiting
+        results by the specified country.
 
+        Parameters
+        ----------
+        country : gsc_wrapper.country
+            The country you would like to filter on.
+        operator : str
+            The operator you would like to use to filter.
+            Possible values are
+            - equals (default)
+            - contains
+            - notContains
+            - includingRegex
+            - excludingRegex
+        append : bool
+            Delete a filter with the same key if it exists.
+            Can be optional, hence False.
 
-        Args:
-            country  (gsc_wrapper.country): The country you would like to
-                filter on.
-            operator (str) : The operator you would like to use to filter.
-                Possible values are
-                - equals (default)
-                - contains
-                - notContains
-                - includingRegex
-                - excludingRegex
-            append   (bool) : Delete a filter with the same key if it exists.
-                Can be optional, hence False.
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.filter(country.ITALY, operator.EQUAL)
+        <gsc_wrapper.query.Query(...)>
 
-        Usage:
-            >>> query = Query(site)
-            >>> query.filter(country.ITALY, operator.EQUAL)
-            <gsc_wrapper.query.Query(...)>
-
-            >>> query.filter(country=country.UNITED_KINGDOM,
-                operator.NOT_CONTAINS)
-            <gsc_wrapper.query.Query(...)>
+        >>> query.filter(country=country.UNITED_KINGDOM,
+            operator.NOT_CONTAINS)
+        <gsc_wrapper.query.Query(...)>
         """
         ...
 
@@ -258,34 +308,42 @@ class Query:
         operator: enums.operator = enums.operator.EQUALS,
         append: bool = False,
     ):
-        """Return a query that filters rows by the specified filter.
+        """Return a Query instance with a filter aimed at limiting
+        results by the specified dimension.
 
-        Args:
-            dimension  (gsc_wrapper.dimension): Dimension you would like to
-                filter on.
-            expression (str) : The value you would like to filter.
-            operator   (str) : The operator you would like to use to filter.
-                Possible values:
-                - equals (default)
-                - contains
-                - notContains
-                - includingRegex
-                - excludingRegex
-            append     (bool) : Delete a filter with the same key if it exists.
-                Can be optional, hence False.
+        Parameters
+        ----------
+        dimension : gsc_wrapper.dimension
+            Dimension you would like to filter on.
+        expression : str
+            The value you would like to filter.
+        operator : str
+            The operator you would like to use to filter.
+            Possible values:
+            - equals (default)
+            - contains
+            - notContains
+            - includingRegex
+            - excludingRegex
+        append : bool
+            Delete a filter with the same key if it exists.
+            Can be optional, hence False.
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Usage:
-            >>> query = Query(site)
-            >>> query.filter(dimension=dimension.PAGE, expression='/blog',
-                operator=operator.CONTAINS)
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.filter(dimension=dimension.PAGE, expression='/blog',
+            operator=operator.CONTAINS)
+        <gsc_wrapper.query.Query(...)>
 
-            >>> query.filter(dimension.PAGE, '/blog/?$',
-                operator.INCLUDING_REGEX)
-            <gsc_wrapper.query.Query(...)>
+        >>> query.filter(dimension.PAGE, '/blog/?$',
+            operator.INCLUDING_REGEX)
+        <gsc_wrapper.query.Query(...)>
         """
         ...
 
@@ -324,7 +382,7 @@ class Query:
         else:
             raise ValueError(
                 "Operator argument does not match the \
-                             expected type."
+                    expected type."
             )
 
         # Remove the existing filter if it has been previously used
@@ -351,13 +409,15 @@ class Query:
         if isinstance(country, enums.country):
             _country: str = country.value
         else:
-            raise ValueError("Dimension argument does not match the expected type.")
+            raise ValueError("Dimension argument doesn't match the expected\
+                    type.")
 
         # Check for the right data type
         if isinstance(operator, enums.operator):
             _operator: str = operator.value
         else:
-            raise ValueError("Operator argument does not match the expected type.")
+            raise ValueError("Operator argument doesn't match the expected\
+                    type.")
 
         # Remove the existing filter if it has been previously used
         if not append:
@@ -376,16 +436,20 @@ class Query:
         Return a query upon the given country has been removed from the
         query.
 
-        Args:
-            country  (gsc_wrapper.country): Country used to identify the
-            filter to remove.
+        Parameters
+        ----------
+        country : gsc_wrapper.country
+            Country used to identify the filter to remove.
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Usage:
-            >>> site.query.filter_remove(country_name)
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> site.query.filter_remove(country_name)
+        <gsc_wrapper.query.Query(...)>
         """
         ...
 
@@ -395,22 +459,29 @@ class Query:
         Return a query upon the given dimension has been removed from the
         query.
 
-        Args:
-            dimension  (enum.dimension): Dimension used to identify the
-                filter to remove.
-            expression (str)           : Value used to identify the
-                filter to remove.
-                It works in pair with the dimension.
+        Parameters
+        ----------
+        dimension : enum.dimension
+            Dimension used to identify the filter to remove.
+        expression : str
+            Value used to identify the filter to remove.
+            It works in pair with the dimension.
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Usage:
-            >>> site.query.filter_remove(dimension=dimension.PAGE, expression='/blog/')
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> site.query.filter_remove(
+                dimension=dimension.PAGE,
+                expression='/blog/'
+            )
+        <gsc_wrapper.query.Query(...)>
 
-            >>> site.query.filter(dimension.PAGE, '/blog/')
-            <gsc_wrapper.query.Query(...)>
+        >>> site.query.filter(dimension.PAGE, '/blog/')
+        <gsc_wrapper.query.Query(...)>
         """
         ...
 
@@ -438,20 +509,25 @@ class Query:
         Return a query limiting the number of rows returned. It can also
         be used to offset a certain number of rows using a SQL-like syntax.
 
-        Args:
-            *limit (int): The maximum number of rows to return.
-                Whenever two values are provided, these will be
-                interpreted as the lower and higher bounds.
+        Parameters
+        ----------
+        *limit : int
+            The maximum number of rows to return.
+            Whenever two values are provided, these will be interpreted as
+            the lower and higher bounds.
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Usage:
-            >>> site.query.limit(10)
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> site.query.limit(10)
+        <gsc_wrapper.query.Query(...)>
 
-            >>> site.query.limit(10, 10)
-            <gsc_wrapper.query.Query(...)>
+        >>> site.query.limit(10, 10)
+        <gsc_wrapper.query.Query(...)>
         """
         if len(limit) == 2:
             start, maximum = limit
@@ -471,18 +547,24 @@ class Query:
         """
         Return a query that fetches metrics within a given date range.
 
-        Args:
-            startDate (date): Query start date.
-            endDate (date): Query end date.
+        Parameters
+        ----------
+        startDate : date
+            Query start date.
+        endDate : date
+            Query end date.
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Usage:
-            >>> query = Query(site)
-            >>> query.range(startDate=date(2022, 10, 10),
-                            endDate=date(2022, 11, 10))
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.range(startDate=date(2022, 10, 10),
+                        endDate=date(2022, 11, 10))
+        <gsc_wrapper.query.Query(...)>
         """
         ...
 
@@ -491,16 +573,22 @@ class Query:
         """
         Return a query that fetches metrics within a given date range.
 
-        Args:
-            startDate (str): Query start date in ISO format.
-            endDate   (str): Query end date in ISO format.
+        Parameters
+        ----------
+        startDate : str
+            Query start date in ISO format.
+        endDate : str
+            Query end date in ISO format.
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Usage:
-            >>> site.query.range(startDate='2022-10-10', endDate='2022-11-10')
-            <gsc_wrapper.query.Query('2022-10-10', '2022-11-10')>
+        Examples
+        --------
+        >>> site.query.range(startDate='2022-10-10', endDate='2022-11-10')
+        <gsc_wrapper.query.Query('2022-10-10', '2022-11-10')>
         """
         ...
 
@@ -511,26 +599,30 @@ class Query:
         If months is negative the start and end date will be adjusted
         accordingly.
 
+        Parameters
+        ----------
+        startDate : date
+            The query start date.
+        days : int
+            The number of days to add or substract from the start date.
+        months : int
+            The number of months to add or substract from the start date.
+            If months is negative, startDate is adjusted accordingly.
 
-        Args:
-            startDate (date): Query start date.
-            days      (int) : The number of days to add or substract from the
-                start date.
-            months    (int) : The number of months to add or substract from
-                the start date.
-                If months is negative, startDate is adjusted accordingly.
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.range(startDate=date(2022, 10, 10),
+            days=0, months=1)
+        <gsc_wrapper.query.Query(...)>
 
-        Usage:
-            >>> query = Query(site)
-            >>> query.range(startDate=date(2022, 10, 10),
-                days=0, months=1)
-            <gsc_wrapper.query.Query(...)>
-
-            >>> query.range(date(2022, 10, 10), 0, -1)
-            <gsc_wrapper.query.Query(...)>
+        >>> query.range(date(2022, 10, 10), 0, -1)
+        <gsc_wrapper.query.Query(...)>
         """
         ...
 
@@ -541,27 +633,30 @@ class Query:
         If months is negative the start and end date will be adjusted
         accordingly.
 
-        Args:
-            startDate (str): Query start date in ISO format.
-            days      (int): The number of days to add or substract from
-                startDate.
-                If days is negative, startDate is adjusted
-                accordingly.
-            months    (int): The number of months to add or substract from
-                the start date.
-                If months is negative, startDate is adjusted
-                accordingly.
+        Parameters
+        ----------
+        startDate : str
+            Query start date in ISO format.
+        days : int
+            The number of days to add or substract from startDate.
+            If days is negative, startDate is adjusted accordingly.
+        months : int
+            The number of months to add or substract from the start date.
+            If months is negative, startDate is adjusted accordingly.
 
-        Returns:
-            `gsc_wrapper.query.Query`
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nesting
 
-        Usage:
-            >>> query = Query(site)
-            >>> query.range(startDate='2022-10-18', days=1, months=0)
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.range(startDate='2022-10-18', days=1, months=0)
+        <gsc_wrapper.query.Query(...)>
 
-            >>> query.range('2022-10-18', -1, 0)
-            <gsc_wrapper.query.Query(...)>
+        >>> query.range('2022-10-18', -1, 0)
+        <gsc_wrapper.query.Query(...)>
         """
         ...
 
@@ -643,22 +738,28 @@ class Query:
 
         return self.__range_build(startDate, endDate)
 
-    def search_type(self, search_type: enums.search_type = enums.search_type.WEB):
+    def search_type(
+        self,
+        search_type: enums.search_type = enums.search_type.WEB
+    ):
         """Return a new query that filters for the specified search type.
         This can be seen as a metric.
 
+        Parameters
+        ----------
+        search_type : gsc_wrapper.search_type
+            The search type you would like to report on.
 
-        Args:
-            search_type (gsc_wrapper.search_type): The search type you would
-            like to report on.
+        Returns
+        -------
+        gsc_wrapper.query.Query
+            A reference of the same class to allow methods nestings
 
-        Returns:
-            `gsc_wrapper.query.Query`
-
-        Usage:
-            >>> query = Query(site)
-            >>> query.search_type(gsc_wrapper.search_type.WEB)
-            <gsc_wrapper.query.Query(...)>
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.search_type(gsc_wrapper.search_type.WEB)
+        <gsc_wrapper.query.Query(...)>
         """
         # Check for the right data type
         if isinstance(search_type, enums.search_type):
@@ -674,18 +775,21 @@ class Query:
 
         return self
 
-    def get(self) -> Type["query.Report"]:
-        """Return the full batch of data by processing the constructed query
-        and invoking the API.
-        It returns a Report object containing the extracted dataset.
+    def get(self) -> Report:
+        """Return all the data available for a given query chunking
+        the resultset into batches and retrieving the information
+        into a report.
 
-        Returns:
-            `gsc_wrapper.query.Report`
+        Returns
+        -------
+        gsc_wrapper.query.Report
+            A `Report` object containing the extracted dataset.
 
-        Usage:
-            >>> query = Query(site)
-            >>> query.get()
-            <gsc_wrapper.query.Report(rows=...)>
+        Examples
+        --------
+        >>> query = Query(site)
+        >>> query.get()
+        <gsc_wrapper.query.Report(rows=...)>
         """
         raw_data = []
         startRow = self.raw.get("startRow", 0)
@@ -726,7 +830,7 @@ class Query:
         if self.raw.get("type") and "google_news" in self.raw.get("type"):
             self.__filter_remove(self.raw.get("dimensionFilterGroups"), "query", "ALL")
 
-    def execute(self):
+    def execute(self) -> object:
         """Invoke the API to obtain the raw data as per the specified query.
         Set the boundaries with the `limit` method to extract a specific
         subset.
@@ -734,7 +838,6 @@ class Query:
         When a larger dataset is expected the get() method should be used
         so the cursor approach kicks-in.
         """
-        # url = self.webproperty.url
         self.__validate_query()
 
         try:
@@ -761,19 +864,22 @@ class Query:
 
 
 class Report:
-    """Unpack the raw data previously queried via the Query class into a report
-    object ready to be consumed. The class does not execute any query directly.
-    A Report can be explicitly created using the `Query.get()` method.
+    """Unpack the `Query` raw data into a report that can be
+    consumed in different manners.
+    The class does not execute any query directly.
 
+    Parameters
+    ----------
+    webproperty : str
+        The site being queried, stored for reference.
+    query : dict
+        The dictionary containing the query used to generate the report,
+        stored for reference.
+    raw : dict
+        The raw data queried via the Query class.
 
-    Args
-        url    (str) : The site being queried, stored for reference.
-        query (dict) : The dictionary containing the query used
-            to generate the report, stored for reference.
-        raw   (dict) : The raw data queried via the Query class.
-
-
-    Usage:
+    Examples
+    --------
     >>> site = account["www.test1.com"]
     >>> query = gsc_wrapper.Query(site)
     >>> report = query.range(startDate=date.today(), days=1, months=0)\
@@ -795,8 +901,8 @@ class Report:
     [Row(...), ..., Row(...)]
     """
 
-    def __init__(self, url: str, query, raw):
-        self.url = url
+    def __init__(self, webproperty: str, query, raw: list):
+        self.webproperty = webproperty
         self.query = query
 
         if type(raw) is not list and "keys" in raw[0].keys():
@@ -811,12 +917,12 @@ class Report:
         ):
             base_metrics.remove("position")
 
-        self.dimensions = self.query.get("dimensions")
+        self.dimensions = self.query.get("dimensions", list())
         self.columns = self.dimensions + base_metrics
         self.row = collections.namedtuple("Row", self.columns)
         self.rows = []
         self.raw = raw
-        self.append(raw)
+        self._append()
 
     def __iter__(self):
         return iter(self.rows)
@@ -847,54 +953,67 @@ class Report:
 
         return self.rows[-1]
 
-    def append(self, raw):
-        for row in raw:
+    def _append(self):
+        for row in self.raw:
             row = row.copy()
             dimensions = dict(zip(self.dimensions, row.pop("keys", [])))
-            self.rows.append(self.row(**row, **dimensions))
+            self.rows.append(self.row(**dimensions, **row))
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return [dict(row._asdict()) for row in self.rows]
 
-    def to_dataframe(self):
-        import pandas
+    def to_dataframe(self) -> object:
+        """Convert the resultset into a Pandas DataFrame for machine learning
+        analysis or on-the-fly querying.
 
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame with the flattened rsults.
+        """
+        import pandas
         return pandas.DataFrame(self.rows)
 
     def to_disk(self, filename="") -> str | None:
         """Persist the dictionary with the data on disk. If the filename is
         not given, one will be generated automatically.
-        A mechanism to avoid overwriting an existing file had been included.
+        A new file with a different suffix will be generated if the given one
+        already exists.
 
-        Args
-            filename (str): The name of the while where the data will be
-            persisted.
+        Parameters
+        ----------
+        filename : str
+            The name of the while where the data will be persisted.
 
         Returns
-            str. The filename were data was persisteed or None
+        -------
+        str or None
+            The filename were data was persisteed
         """
         import pathlib
         import pickle
         import re
 
         if filename == "":
-            domain = re.sub(r"[./]", "_", self.url).replace("__", "_").replace(":", "")
-            filename = date.today().strftime("%Y%m%d") + "_" + domain + ".pck"
+            # This is calibrated around the webproperty format
+            domain = re.sub(r"[./]", "_", self.webproperty).replace("__", "_").replace(":", "")
+            filename = date.today().strftime("%Y%m%d") + \
+                "_" + domain + "query.pck"
 
-        dir = pathlib.Path.cwd()
-        unique_path = dir / filename
+        # dir = pathlib.Path.cwd()
+        # unique_path = dir / filename
 
-        if unique_path.exists():
-            filename = filename.replace(".pck", "{:03d}.pck")
-            counter = 0
-            while True:
-                counter += 1
-                unique_path = dir / filename.format(counter)
-                if not unique_path.exists():
-                    break
-
+        # if unique_path.exists():
+        #     filename = filename.replace(".pck", "{:03d}.pck")
+        #     counter = 0
+        #     while True:
+        #         counter += 1
+        #         unique_path = dir / filename.format(counter)
+        #         if not unique_path.exists():
+        #             break
+        unique_path = Util.get_filename(pathlib.Path.cwd(), filename)
         try:
-            data = [{"url": self.url, "query": self.query}, self.raw]
+            data = [{"url": self.webproperty, "query": self.query}, self.raw]
 
             if unique_path != "":
                 with open(unique_path, "wb") as f:
@@ -907,15 +1026,19 @@ class Report:
             return None
 
     @classmethod
-    def from_disk(cls, filename: str) -> Type["Report"] | None:
+    def from_disk(cls, filename: str) -> Self | None:
         """Load a file from the disk a previously saved report stored
         with the GSC Wrapper class.
 
-        Args
-            filename (str): The name of the file used to persist data
+        Parameters
+        ----------
+        filename : str
+            The name of the file used to persist data
 
         Returns
-            Report. The unpacked rows.
+        -------
+        Report or None
+            The unpacked rows.
         """
         import pickle
 
@@ -925,21 +1048,24 @@ class Report:
                     data = pickle.load(f)
                     return cls(data[0].get("url"), data[0].get("query"), data[1])
             except OSError as e:
-                print(f"{type(e)}: {e}")
-                return None
+                raise OSError(f"{type(e)}: {e}")
 
         return None
 
     @classmethod
-    def from_datastream(cls, data: bytes) -> Type["Report"] | None:
+    def from_datastream(cls, data: bytes) -> Self | None:
         """Rebuild the report with the GSC Wrapper class using
         the data stream passed in the argument.
 
-        Args
-            data (byte): The dara stream containing the report details
+        Parameters
+        ----------
+        data : byte
+            The dara stream containing the report details
 
         Returns
-            Report. The unpacked rows.
+        -------
+        Report or None
+            The unpacked rows.
         """
         import pickle
 
