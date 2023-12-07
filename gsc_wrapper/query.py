@@ -1,5 +1,6 @@
 from __future__ import annotations
 import collections
+from functools import cache
 import time
 from datetime import date
 from typing import Self, overload
@@ -130,8 +131,6 @@ class Query:
             raise ValueError("Data State argument does not match the expected\
                     type.")
 
-        # self.raw["dataState"] = data_state
-        # self.raw.update({"dataState": data_state})
         self.raw |= {"dataState": data_state}
 
         return self
@@ -810,8 +809,8 @@ class Query:
             self.raw["startRow"] += step
 
         # Report stores a copy of the query object for reference.
-        # Overwriting the limit boundaries to have vibility on the
-        # processed data.
+        # Setting original limits to ensure consistency with the
+        # data header.
         query = self.raw.copy()
         query["startRow"] = startRow
         query["rowLimit"] = chunck_len
@@ -962,6 +961,7 @@ class Report:
     def to_dict(self) -> dict:
         return [dict(row._asdict()) for row in self.rows]
 
+    @cache
     def to_dataframe(self) -> object:
         """Convert the resultset into a Pandas DataFrame for machine learning
         analysis or on-the-fly querying.
@@ -1000,17 +1000,6 @@ class Report:
             filename = date.today().strftime("%Y%m%d") + \
                 "_" + domain + "query.pck"
 
-        # dir = pathlib.Path.cwd()
-        # unique_path = dir / filename
-
-        # if unique_path.exists():
-        #     filename = filename.replace(".pck", "{:03d}.pck")
-        #     counter = 0
-        #     while True:
-        #         counter += 1
-        #         unique_path = dir / filename.format(counter)
-        #         if not unique_path.exists():
-        #             break
         unique_path = Util.get_filename(pathlib.Path.cwd(), filename)
         try:
             data = [{"url": self.webproperty, "query": self.query}, self.raw]
