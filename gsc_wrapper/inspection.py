@@ -1,14 +1,12 @@
 from __future__ import annotations
-from datetime import date
+from datetime import datetime, time
 from functools import cache
-import time
 from typing import Self, overload
-from gsc_wrapper import account
 from dispatcher import dispatcher
 from collections import namedtuple, abc
-import googleapiclient.errors
-
+from gsc_wrapper import account, enums
 from gsc_wrapper.util import Util
+import googleapiclient.errors
 
 
 class InspectURL:
@@ -30,17 +28,11 @@ class InspectURL:
     >>> inspect = InspectURL(site)
     >>> inspect.add_url("https://www.andreamoro.eu")
     >>> inspect.get()
-    <gsc_wrapper.query.Report(rows=...)>
+    <gsc_wrapper.inspection.Report(rows=...)>
 
     >>> inspect.execute()
-    >>> query = query.range(startDate='2022-11-10', days=-7, months=0)\\
-    ...              .dimension(gsc_wrapper.dimension.DATE,
-    ...                         gsc_wrapper.dimension.QUERY)\\
-    ...              .filter('query', 'dress', 'contains')\\
-    ...              .filter('page', '/womens-clothing/', 'contains')\\
-    ...              .limit(20000)
-    >>> data = query.get()
-    <gsc_wrapper.query.Report(rows=...)>
+    >>> data = inpsect.execute()
+    [Row(),...]
     """
     _lock = 0
 
@@ -328,7 +320,6 @@ class InspectURL:
         wait = max(0, 1 - elapsed)
         time.sleep(wait)
         self._lock = time.time()
-
         return wait
 
 
@@ -345,6 +336,25 @@ class Report:
             self.raw = raw
             self.rows = []
             self._append()
+
+        self.__enums_map = {
+            'indexStatusResult.verdict': enums.verdict,
+            'indexStatusResult.robotsTxtState': enums.robotsTxtState,
+            'indexStatusResult.indexingState': enums.indexingState,
+            'indexStatusResult.pageFetchState': enums.pageFetchState,
+            'indexStatusResult.crawledAs': enums.crawlerAgent,
+            'mobileUsabilityResult.verdict': enums.verdict,
+            'mobileUsabilityIssue.issueType': enums.mobileUsabilityIssueType,
+            'mobileUsabilityIssue.severity': enums.severity,
+            'ampInspectionResult.verdict': enums.verdict,
+            'ampInspectionResult.robotsTxtState': enums.robotsTxtState,
+            'ampInspectionResult.indexingState': enums.indexingState,
+            'ampInspectionResult.ampIndexStatusVerdict': enums.verdict,
+            'ampInspectionResult.pageFetchState': enums.pageFetchState,
+            'ampIssue.severity': enums.severity,
+            'richResultsResult.verdict': enums.verdict,
+            'richResultsIssue.severity': enums.severity,
+        }
 
     def __iter__(self):
         return iter(self.rows)
@@ -407,7 +417,7 @@ class Report:
 
     def __toDict(self, collection: namedtuple) -> dict:
         """Intenal auxiliary method to transform a nested named tuple
-        into a dictionary
+        into a dictionary.
 
         Parameters
         ----------
@@ -419,7 +429,9 @@ class Report:
             dictionary
         """
         if isinstance(collection, tuple) and hasattr(collection, '_asdict'):
-            return {k: self.__toDict(v) for k, v in collection._asdict().items()}
+            return {
+                k: self.__toDict(v) for k, v in collection._asdict().items()
+            }
         elif isinstance(collection, list):
             return [self.__toDict(item) for item in collection]
         else:
@@ -449,15 +461,25 @@ class Report:
             A flattened dictionary
         """
         items = []
+
         for key, value in dictionary.items():
             new_key = str(parent_key) + sep + key if parent_key else key
             if isinstance(value, abc.MutableMapping):
                 items.extend(self.__toFlattenDict(value, new_key, sep).items())
             elif isinstance(value, list):
                 for k, v in enumerate(value):
-                    items.extend(self.__toFlattenDict({str(k): v}, new_key).items())
+                    items.extend(
+                        self.__toFlattenDict({str(k): v}, new_key).items()
+                    )
             else:
-                items.append((new_key, value))
+                try:
+                    value = self._Report__enums_map[new_key][value].value
+                    # items.append((new_key,
+                    #               )
+                except KeyError:
+                    pass
+                finally:
+                    items.append((new_key, value))
         return dict(items)
 
     @cache
@@ -504,8 +526,9 @@ class Report:
 
         if filename == "":
             # This is calibrated around the webproperty format
-            domain = re.sub(r"[./]", "_", self.webproperty).replace("__", "_").replace(":", "")
-            filename = date.today().strftime("%Y%m%d") + \
+            domain = re.sub(r"[./]", "_", self.webproperty).\
+                replace("__", "_").replace(":", "")
+            filename = datetime.today().strftime("%Y%m%d") + \
                 "_" + domain + "_inspection.pck"
 
         unique_path = Util.get_filename(pathlib.Path.cwd(), filename)
