@@ -6,7 +6,12 @@ class MyEnumMeta(EnumMeta):
         try:
             cls(item)
         except ValueError:
-            return False
+            try:
+                cls.__members__.get(item)
+            except ValueError:
+                return False
+            else:
+                return True
         else:
             return True
 
@@ -302,20 +307,22 @@ class verdict(Enum, metaclass=MyEnumMeta):
     NEUTRAL = "Excluded from GSC"
 
 
-class robots_txt_state(Enum, metaclass=MyEnumMeta):
+class robotsTxtState(Enum, metaclass=MyEnumMeta):
     ROBOTS_TXT_STATE_UNSPECIFIED = "State unknown, page not fetched"
     ALLOWED = "Allowed"
     DISALLOWED = "Disallowed"
 
 
-class indexing_state(Enum, metaclass=MyEnumMeta):
+class indexingState(Enum, metaclass=MyEnumMeta):
     INDEXING_STATE_UNSPECIFIED = "State unknown"
     INDEXING_ALLOWED = "Indexing allowed"
     BLOCKED_BY_META_TAG = "Noindex detected in robots meta tag"
+    BLOCKED_DUE_TO_NOINDEX = BLOCKED_BY_META_TAG
     BLOCKED_BY_HTTP_HEADER = "Noindex detected in X-Robots-Tag"
+    BLOCKED_DUE_TO_EXPIRED_UNAVAILABLE_AFTER = "Indexing not allowed due to 'unavailable_after' date expired"
 
 
-class page_fetch_state(Enum, metaclass=MyEnumMeta):
+class pageFetchState(Enum, metaclass=MyEnumMeta):
     PAGE_FETCH_STATE_UNSPECIFIED = "State unknown"
     SUCCESSFUL = "Success"
     BLOCKED_ROBOTS_TXT = "Blocked by robots.txt"
@@ -330,7 +337,23 @@ class page_fetch_state(Enum, metaclass=MyEnumMeta):
     INVALID_URL = "Invalid URL"
 
 
-class crawler_agent(Enum, metaclass=MyEnumMeta):
+class crawlerAgent(Enum, metaclass=MyEnumMeta):
     CRAWLING_USER_AGENT_UNSPECIFIED = "Unknown"
     DESKTOP = "Desktop"
     MOBILE = "Mobile"
+
+
+class severity(Enum, metaclass=MyEnumMeta):
+    SEVERITY_UNSPECIFIED = "Unknown severity"
+    WARNING = "Warning"
+    ERROR = "Error"
+
+
+class mobileUsabilityIssueType(Enum, metaclass=MyEnumMeta):
+    MOBILE_USABILITY_ISSUE_TYPE_UNSPECIFIED = "Unknown issue"
+    USES_INCOMPATIBLE_PLUGINS = "Site uses incompatible plugins for mobile devices"
+    CONFIGURE_VIEWPORT = "Viewport is not specified"
+    FIXED_WIDTH_VIEWPORT = "Viewport defined to a fixed width"
+    SIZE_CONTENT_TO_VIEWPORT = "Content not sized to viewport"
+    USE_LEGIBLE_FONT_SIZES = "Font size is too small for mobile devices"
+    TAP_TARGETS_TOO_CLOSE = "Touch elements are too close"
