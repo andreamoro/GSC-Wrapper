@@ -1,5 +1,6 @@
 from __future__ import annotations
-from datetime import datetime, time
+import time
+from datetime import datetime
 from functools import cache
 from typing import Self, overload
 from dispatcher import dispatcher
@@ -320,6 +321,7 @@ class InspectURL:
         wait = max(0, 1 - elapsed)
         time.sleep(wait)
         self._lock = time.time()
+
         return wait
 
 

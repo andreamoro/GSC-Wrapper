@@ -21,13 +21,13 @@ To use the package, download the code on your local machine then install using t
     python -m pip install . 
 ```
 
-BEWARE: GSC wrapper depends from another package of mine - [`multi-args-dispatcher`](https://github.com/andreamoro/Dispatcher) which has not yet distributed on a public repository. The installation package is setup to provision the file for you. 
+**BEWARE**: GSC Wrapper depends from another package of mine - [`multi-args-dispatcher`](https://github.com/andreamoro/Dispatcher) - tha is provisioned by the installation package.
 
 
 ## Quickstart
 
 In order to work with this package the [prerequisites](https://developers.google.com/webmaster-tools/search-console-api-original/v3/prereqs) have to be fullfilled, which can be summarised as per the below:
-- At least one [Google Account](https://accounts.google.com/signup/v2/webcreateaccount) with at least one website registered.
+- A [Google Account](https://accounts.google.com/signup/v2/webcreateaccount) with at least one website registered.
 - Access to the [Google API console](https://console.cloud.google.com/apis/library/searchconsole.googleapis.com) - remember to save your credentials somewhere.
 
 After that, executing your first query is really straightforward as per the following example.
@@ -152,3 +152,8 @@ or
 Two corresponding methods have been made available to reload persisted information: `from_disk` and `from_datastream`. Both of them returns a `Report` object that can be consumed in the same way as the one returned on a live query.
 
 At present, there is no data compression mechanism, no third-party libraries, and no database saving logic. For more complex requirements, additional code has to be written independently.
+
+
+## Changelog
+
+To check out major changes applied to the wrapper or understand the future evolution, you can checkout the [changelog](https://github.com/andreamoro/GSC-Wrapper/blob/master/CHANGELOG.md) file.
