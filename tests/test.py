@@ -8,15 +8,52 @@ from datetime import date
 from pathlib import Path
 
 import sys
-
-
-# import os
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import gsc_wrapper
 from gsc_wrapper.query import Report as ReportQuery
 from gsc_wrapper.inspection import Report as ReportInspection
 
+
+def AuthenticationSteps(browser, config):
+    from selenium.webdriver import Keys
+    from selenium.webdriver.common.by import By
+
+    if "opparams" in browser.current_url:
+        # Login is required again
+        username = browser.find_element(By.ID, "identifierId")
+        username.send_keys(config["web_authentication"]["email"])
+        username.send_keys(Keys.ENTER)
+        return
+
+        # while "opparams" in browser.current_url:
+        #     time.sleep(2)
+
+    if "/pwd" in browser.current_url:
+        password = browser.find_element(
+            By.XPATH, "//form//input[@type='password']"
+        )
+        password.send_keys(config["web_authentication"]["password"])
+        password.send_keys(Keys.ENTER)
+        return
+
+        # while "pwd" in browser.current_url: # challenge
+        #     time.sleep(2)
+
+    if "oauthchooseaccount" in browser.current_url:
+        button = browser.find_element(
+            By.XPATH, "//*/ul[@class='OVnw0d']/li[1]/div"
+        )
+        button.click()
+        return
+
+        # while "oauthchooseaccount" in browser.current_url:
+        #     time.sleep(2)
+
+    if "consent" in browser.current_url and \
+        "/pwd" not in browser.current_url:
+        # This is the "Screen consent with the Allow button"
+        button = browser.find_element(By.CSS_SELECTOR, "#submit_approve_access")
+        button.click()
 
 def Authenticate(istest: bool) -> gsc_wrapper.WebProperty | None:
     if not istest:
@@ -45,7 +82,7 @@ def Authenticate(istest: bool) -> gsc_wrapper.WebProperty | None:
 
         # The next following lines facilitate the authentication process with
         # Google Auth form.
-        from selenium.webdriver import Chrome, Keys, ChromeOptions
+        from selenium.webdriver import Chrome, ChromeOptions
         from selenium.webdriver.common.by import By
 
         # brave_path = f"{Path.home()}/.config/BraveSoftware/Brave-Browser/"
@@ -66,46 +103,12 @@ def Authenticate(istest: bool) -> gsc_wrapper.WebProperty | None:
             browser.get(auth_url)
             time.sleep(2)
 
-            if browser.current_url != auth_url:
-                if "opparams" in browser.current_url:
-                    # Login is required again
-                    username = browser.find_element(By.ID, "identifierId")
-                    username.send_keys(config["web_authentication"]["email"])
-                    username.send_keys(Keys.ENTER)
+            while "approvalnativeapp" not in browser.current_url:
+                time.sleep(2)
+                AuthenticationSteps(browser, config)
 
-                    time.sleep(5)
-
-                    password = browser.find_element(
-                        By.XPATH, "//form//input[@name='Passwd']"
-                    )
-                    password.send_keys(config["web_authentication"]["password"])
-                    password.send_keys(Keys.ENTER)
-
-                    # Here we need the verification to continue with human interaction
-                    # So entering into a loop to allow the user passin it
-                    while "challenge" in browser.current_url:
-                        time.sleep(2)
-
-                if "oauthchooseaccount" in browser.current_url:
-                    button = browser.find_element(
-                        By.XPATH, "//*/ul[@class='OVnw0d']/li[1]/div"
-                    )
-                    button.click()
-
-                    while "oauthchooseaccount" in browser.current_url:
-                        time.sleep(2)
-
-                if "consent" in browser.current_url:
-                    # This is the "Screen consent with the Allow button"
-                    button = browser.find_element(By.CSS_SELECTOR, "#submit_approve_access")
-                    button.click()
-
-                    while "consent" in browser.current_url:
-                        time.sleep(2)
-
-            if "approvalnativeapp" in browser.current_url:
-                token = browser.find_element(By.CLASS_NAME, "fD1Pid").text
-                browser.close()
+            token = browser.find_element(By.CLASS_NAME, "fD1Pid").text
+            browser.close()
 
         if token == None or len(token) == 0:
             raise Exception('The authentication token was not retrieved.')
@@ -184,13 +187,13 @@ def test_search_analytics(query: gsc_wrapper.Query):
     # assert query.startDate < query.endDate, "Error. Start date is lower than end date."
     # print()
 
-    # # Expected endDate 1 day from startdate 2022-11-10 = 2022-11-11
-    # data = query.range(startDate=date(2022, 11, 10), days=1, months=0)
-    # assert \
-    #     query.startDate == date(2022, 11, 10) and \
-    #     query.endDate == date(2022, 11, 11), "Error"
-    # print(query.raw)
-    # print()
+    # Expected endDate 1 day from startdate 2022-11-10 = 2022-11-11
+    data = query.range(startDate=date(2022, 11, 10), days=1, months=0)
+    assert \
+        query.startDate == date(2022, 11, 10) and \
+        query.endDate == date(2022, 11, 11), "Error"
+    print(query.raw)
+    print()
 
     # # Expected + 1 days + 1 month with startdate 2022-10-10 = 2022-11-11
     # data = query.range(startDate=date(2022, 10, 10), days=1, months=1)
@@ -245,15 +248,15 @@ def test_search_analytics(query: gsc_wrapper.Query):
     #     .get()
     # )
 
-    data = query.range(startDate=date.today(), days=-10, months=0)
-    data = query.filter(
-        country=gsc_wrapper.country.ITALY,
-        operator=gsc_wrapper.operator.EQUALS,
-        append=False,
-    ).dimensions(gsc_wrapper.dimension.PAGE)
-    assert query.filters == [
-        {"dimension": "country", "expression": "ITA", "operator": "equals"}
-    ], "Error"
+    # data = query.range(startDate=date.today(), days=-10, months=0)
+    # data = query.filter(
+    #     country=gsc_wrapper.country.ITALY,
+    #     operator=gsc_wrapper.operator.EQUALS,
+    #     append=False,
+    # ).dimensions(gsc_wrapper.dimension.PAGE)
+    # assert query.filters == [
+    #     {"dimension": "country", "expression": "ITA", "operator": "equals"}
+    # ], "Error"
 
     # data = query.filter_remove(gsc_wrapper.country.ITALY)
     # data = query.search_type(gsc_wrapper.search_type.WEB)
@@ -276,7 +279,7 @@ def test_search_analytics(query: gsc_wrapper.Query):
 
     # pass
     # *** Execute a query and return the whole dataset in a Report
-    report = data.get()
+    # report = data.get()
 
     # *** Execute a query against a sliced set of data
     # Here you can reuse the same object as before.
@@ -294,19 +297,30 @@ def test_search_analytics(query: gsc_wrapper.Query):
     # report.to_disk('https_www_andreamoro_eu.pck')
     # pass
     # *** Restore a report persisted on disk
-    report = ReportQuery.from_disk("https_www_andreamoro_eu.pck")
-    pass
+    # report = ReportQuery.from_disk("https_www_andreamoro_eu.pck")
+    # pass
 
 
 def test_url_inspection(site):
     inspect = gsc_wrapper.InspectURL(site)
-    inspect.add_url("https://www.andreamoro.eu").add_url('https://www.andreamoro.eu/blog/')
-    # Report = inspect.get()
-    data = inspect.execute()
-    # df = Report.to_dataframe()
+    inspect.add_url(["https://www.andreamoro.eu/"])
+    inspect.add_url("https://www.andreamoro.eu/contattami").add_url('https://www.andreamoro.eu/blog/')
+
+    Report = inspect.get()
+    # data = inspect.execute()
+    df = Report.to_dataframe()
+
+    # Testing the cache
+    # At this stage, by calling something different should invalidate the cache
+    inspect.add_url("https://www.andreamoro.eu/contattami").add_url('https://www.andreamoro.eu/blog/')
+    inspect.add_url("https://www.andreamoro.eu/contattami", True)
+    Report = inspect.get()
+    df2 = Report.to_dataframe()
+
     # Report.to_disk()
 
     Report = ReportInspection.from_disk('20231203_https_www_andreamoro_eu__inspection.pck')
+    Report.to_dataframe()
 
     pass
     # inspect.remove_url("url")
@@ -317,8 +331,8 @@ if __name__ == "__main__":
     site = Authenticate(istest=False)
 
     # Test the Search Analytics part
-    # query = gsc_wrapper.Query(site)
-    # test_search_analytics(query)
+    query = gsc_wrapper.Query(site)
+    test_search_analytics(query)
 
     # Test the URL Inspection part
     test_url_inspection(site)
