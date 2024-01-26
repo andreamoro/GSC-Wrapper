@@ -10,10 +10,8 @@ class Account:
     or to pull information about the indexation status
     of a given URL.
 
-
     Args:
         service
-
 
     Usage:
     >>> import gsc_wrapper

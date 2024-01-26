@@ -1,8 +1,10 @@
 from __future__ import annotations
+import json
 import time
 from datetime import datetime
-from functools import cache
+from functools import cache, cached_property
 from typing import Self, overload
+from attr import dataclass
 from dispatcher import dispatcher
 from collections import namedtuple, abc
 from gsc_wrapper import account, enums
@@ -35,6 +37,20 @@ class InspectURL:
     >>> data = inpsect.execute()
     [Row(),...]
     """
+
+    @dataclass
+    class UrlBag():
+        url: str
+        value: json = None
+        expire: int = 0
+
+        def __repr__(self):
+            return f"<URLBag({self.url})>"
+
+        def __eq__(self, other):
+            if isinstance(other, Self()):
+                return (self.url) == (other.url)
+
     _lock = 0
 
     def __init__(self, webproperty: account.WebProperty | None):
@@ -49,12 +65,21 @@ class InspectURL:
             "siteUrl": webproperty.url,
         }
 
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return True
+        return False
+
     def __repr__(self):
-        return f"<gsc_wrapper.inspection.InspectURL({self.raw})>"
+        return f"<gsc_wrapper.inspection.InspectURL(Site: {self.webproperty.url})>"
 
     @property
     def urls_to_inspect(self) -> int:
         return self._urls_to_inspect
+
+    @cached_property
+    def urls(self) -> list:
+        return [item.url for item in self._urls_bag]
 
     @overload
     def add_url(self, url: str, overwrite: bool = False):
@@ -115,12 +140,35 @@ class InspectURL:
     @add_url.register
     def __(self, url: str, overwrite: bool = False):
         """Overloaded method to add a single URL to the collection."""
+        def __append(url):
+            self._urls_bag.append(self.UrlBag(url))
+            # Invalidate the object used to manage the URLs cache
+            del self.urls
+
+            self._urls_to_inspect = len(self._urls_bag)
+            self.raw |= {
+                "inspectionUrl": url,
+                "siteUrl": self.webproperty.url,
+            }
+
         if not isinstance(url, str):
             raise ValueError(
                 "Dimension argument does not match the expected type."
             )
 
-        self.add_url([url], overwrite)
+        if len(self.urls) > 0 and overwrite:
+            try:
+                item = [item for item in self._urls_bag if item.url == url]
+                self._urls_bag.remove(item[0])
+            except KeyError:
+                pass
+            finally:
+                __append(url)
+
+        elif url not in self.urls:
+            # The URL does not exist in the collection
+            __append(url)
+
         return self
 
     @add_url.register
@@ -131,18 +179,9 @@ class InspectURL:
                 "Dimension argument does not match the expected type."
             )
 
-        if overwrite:
-            self._urls_bag = urls
-        else:
-            self._urls_bag += urls
+        for url in urls:
+            self.add_url(url, overwrite)
 
-        self._urls_to_inspect = len(self._urls_bag)
-
-        # prepare the JSON payload so to have always one line to test
-        self.raw |= {
-            "inspectionUrl": urls[0],
-            "siteUrl": self.webproperty.url,
-        }
         return self
 
     @overload
@@ -269,25 +308,32 @@ class InspectURL:
                 A set of Rows with the results of the inspection.
         """
         raw_data = []
-        urls_to_check = self._urls_bag.copy()
 
         try:
-            while urls_to_check:
-                self._wait()
-                self.raw = {
-                    "inspectionUrl": urls_to_check.pop(),
-                    "siteUrl": self.webproperty.url,
-                }
-                response = (
-                    self.webproperty.account.service.urlInspection()
-                    .index()
-                    .inspect(body=self.raw)
-                    .execute()
-                )
-                ret = response.get('inspectionResult')
-                # Appending the URL inspected as it is not returned back from
-                # the API and it will facilite bulk reporting
-                ret.update({'inspectionUrl': self.raw.get('inspectionUrl')})
+            for item in self._urls_bag:
+                # Check for TTL
+                if item.expire + 450 < time.monotonic():
+                    self._wait()
+                    self.raw = {
+                        # "inspectionUrl": urls_to_check.pop(),
+                        "inspectionUrl": item.url,
+                        "siteUrl": self.webproperty.url,
+                    }
+                    response = (
+                        self.webproperty.account.service.urlInspection()
+                        .index()
+                        .inspect(body=self.raw)
+                        .execute()
+                    )
+                    ret = response.get('inspectionResult')
+                    # Appending the URL inspected as it is returned back
+                    # from the API and it will facilite bulk reporting
+                    ret.update({'inspectionUrl': self.raw.get('inspectionUrl')})
+                    item.value = ret
+                    item.expire = time.monotonic()
+                else:
+                    ret = item.value
+
                 raw_data.append(ret)
 
         except googleapiclient.errors.HttpError as e:
@@ -395,7 +441,9 @@ class Report:
         raw_copy = self.raw.copy()
 
         while raw_copy:
-            self.rows.append(self.__toNametuple(raw_copy.pop()))
+            ret = raw_copy.pop()
+            if ret:
+                self.rows.append(self.__toNametuple(ret))
 
     def __toNametuple(self, collection: dict) -> namedtuple:
         """Intenal auxiliary method to transform a dictionary
@@ -476,8 +524,6 @@ class Report:
             else:
                 try:
                     value = self._Report__enums_map[new_key][value].value
-                    # items.append((new_key,
-                    #               )
                 except KeyError:
                     pass
                 finally:
@@ -502,7 +548,9 @@ class Report:
         raw_copy = self.raw.copy()
 
         while raw_copy:
-            union.append(self.__toFlattenDict(raw_copy.pop()))
+            ret = raw_copy.pop()
+            if ret:
+                union.append(self.__toFlattenDict(ret))
 
         return pd.DataFrame(union)
 

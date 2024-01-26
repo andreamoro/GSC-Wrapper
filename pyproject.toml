@@ -8,7 +8,7 @@ authors = [
     {name = "Andrea Moro", email = "info@andreamoro.eu"},
 ]
 description = "A package to take the pain out when working with the Google Search Console API."
-version = "2.0.1"
+version = "2.0.2"
 readme = "README.md"
 requires-python = ">=3.7"
 license = {text = "GNU-3"}

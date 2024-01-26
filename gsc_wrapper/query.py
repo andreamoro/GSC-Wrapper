@@ -95,7 +95,7 @@ class Query:
         if isinstance(_filters, list) and len(_filters) > 1:
             return [f.get("filters", "")[0] for f in _filters]
         else:
-            return _filters[0].get("filters", "")
+            return [] if len(_filters) == 0 else _filters[0].get("filters", "")
 
     def data_state(
             self,
@@ -689,9 +689,8 @@ class Query:
 
     @dispatcher
     def range(self):
-        """The base implementation dispatching the call to the right
-        overload."""
-        raise NotImplementedError("Method not implementated on purpose.")
+        """Range base implementation overload: not implemented on purpose."""
+        raise NotImplementedError("Method not implementated.")
 
     @range.register
     def __(self, startDate: str, days: int, months: int):
@@ -710,7 +709,7 @@ class Query:
 
     @range.register
     def __(self, startDate: date, days: int = 0, months: int = 0):
-        """Overload using a date, and integer days and months to build
+        """Overload with a date, and integer days and months to build
         the end date."""
 
         # Max start date adjustment will be done later
