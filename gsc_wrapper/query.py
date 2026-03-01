@@ -372,7 +372,7 @@ class Query:
         # SEARCH_APPEARANCE is a dimension that can be used only at
         # a "metric" level.
         # Prevent the query to return errors by not doing anything.
-        if enums.dimension.SEARCH_APPEARANCE.value in dimension:
+        if dimension == enums.dimension.SEARCH_APPEARANCE:
             return self
 
         # Check for the right data type

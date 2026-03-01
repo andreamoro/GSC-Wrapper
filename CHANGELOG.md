@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Asynchronous routines to speed up bulk operations
 
+## [2.0.3] - 2026-03-01
+
+### Fixed
+- Fixed dimension comparison for SEARCH_APPEARANCE in the Query class.
+
+### Added
+- Added `requirements-dev.txt` to support local development testing of dependencies.
+
 ## [2.0.2] - 2024-01-26
 
 ### Added

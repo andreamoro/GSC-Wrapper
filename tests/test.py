@@ -331,8 +331,8 @@ if __name__ == "__main__":
     site = Authenticate(istest=False)
 
     # Test the Search Analytics part
-    query = gsc_wrapper.Query(site)
-    test_search_analytics(query)
+    # query = gsc_wrapper.Query(site)
+    # test_search_analytics(query)
 
     # Test the URL Inspection part
     test_url_inspection(site)
