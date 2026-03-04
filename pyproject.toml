@@ -20,3 +20,8 @@ dependencies = [
     "python_dateutil >= 2.8.0"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "selenium",
+]
+

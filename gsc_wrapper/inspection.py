@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from functools import cache, cached_property
 from typing import Self, overload
-from attr import dataclass
+from dataclasses import dataclass
 from dispatcher import dispatcher
 from collections import namedtuple, abc
 from gsc_wrapper import account, enums
