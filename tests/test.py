@@ -1,9 +1,8 @@
-import logging
 import configparser
 import time
 
 from google_auth_oauthlib.flow import Flow
-from dateutil.relativedelta import relativedelta
+from google.oauth2 import service_account
 from datetime import date
 from pathlib import Path
 
@@ -12,6 +11,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import gsc_wrapper
 from gsc_wrapper.query import Report as ReportQuery
 from gsc_wrapper.inspection import Report as ReportInspection
+
+
+SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
+SITE_URL = "https://www.andreamoro.eu/"
 
 
 def AuthenticationSteps(browser, config):
@@ -55,107 +58,205 @@ def AuthenticationSteps(browser, config):
         button = browser.find_element(By.CSS_SELECTOR, "#submit_approve_access")
         button.click()
 
-def Authenticate(istest: bool) -> gsc_wrapper.WebProperty | None:
-    if not istest:
-        config = configparser.ConfigParser()
-        config.read(str(Path(__file__).parent / "config.ini"))
-        client_id = config["credentials"]["client_id"]
-        client_secret = config["credentials"]["client_secret"]
+def authenticate_oauth() -> gsc_wrapper.WebProperty | None:
+    """Interactive OAuth user flow.
 
-        credentials = {
-            "installed": {
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "redirect_uris": [],
-                "auth_uri": gsc_wrapper.GOOGLE_AUTH_URI,
-                "token_uri": gsc_wrapper.GOOGLE_TOKEN_URI,
-            }
-        }
+    A client_id / client_secret pair is read from config.ini and the
+    consent screen is driven automatically through Selenium to retrieve
+    the authorisation token. Suited to acting on behalf of a human user.
+    """
+    config = configparser.ConfigParser()
+    config.read(str(Path(__file__).parent / "config.ini"))
+    client_id = config["credentials.oauth"]["client_id"]
+    client_secret = config["credentials.oauth"]["client_secret"]
 
-        flow = Flow.from_client_config(
-            credentials,
-            scopes=["https://www.googleapis.com/auth/webmasters.readonly"],
-            redirect_uri="urn:ietf:wg:oauth:2.0:oob",
-        )
-
-        auth_url, b = flow.authorization_url(prompt="consent")
-
-        # The next following lines facilitate the authentication process with
-        # Google Auth form.
-        from selenium.webdriver import Chrome, ChromeOptions
-        from selenium.webdriver.common.by import By
-
-        # brave_path = f"{Path.home()}/.config/BraveSoftware/Brave-Browser/"
-
-        options = ChromeOptions()
-        options.binary_location = "/opt/brave.com/brave/brave"
-        options.add_argument(f"--user-data-dir={Path.home()}/Downloads/GSCWrapperBraveAutomation")
-        options.add_argument("--extension-process")
-        # This implies a manually launched browser with the --remote-debugging-port=9222 option
-        # options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
-
-        # options.add_argument("--no-sandbox")
-        # options.add_argument("--disable-extensions")
-        # options.add_argument("disable-infobars")
-        # options.add_argument("start-maximized")
-
-        with Chrome(options=options) as browser:
-            browser.get(auth_url)
-            time.sleep(2)
-
-            while "approvalnativeapp" not in browser.current_url:
-                time.sleep(2)
-                AuthenticationSteps(browser, config)
-
-            token = browser.find_element(By.CLASS_NAME, "fD1Pid").text
-            browser.close()
-
-        if token == None or len(token) == 0:
-            raise Exception('The authentication token was not retrieved.')
-
-        f = flow.fetch_token(code=token)
-
-        credentials = {
-            "token": token,
-            "refresh_token": f["refresh_token"],
+    credentials = {
+        "installed": {
             "client_id": client_id,
             "client_secret": client_secret,
+            "redirect_uris": [],
+            "auth_uri": gsc_wrapper.GOOGLE_AUTH_URI,
             "token_uri": gsc_wrapper.GOOGLE_TOKEN_URI,
-            "scopes": ["https://www.googleapis.com/auth/webmasters.readonly"],
         }
+    }
 
-        account = gsc_wrapper.Account(credentials)
-        # Retrieving the sites list is implicitely done inside
-        # the get_item method in the account, but if needed
-        # this can be done with the following
-        # site_list = account.webproperties()
-        site = account["https://www.andreamoro.eu/"]
-    else:
-        # Build a fake object to test the rest of the code only.
-        credentials = {
-            "token": None,
-            "refresh_token": None,
-            "client_id": None,
-            "client_secret": None,
-            "token_uri": gsc_wrapper.GOOGLE_TOKEN_URI,
-            "scopes": "https://www.googleapis.com/auth/webmasters.readonly",
-        }
+    flow = Flow.from_client_config(
+        credentials,
+        scopes=SCOPES,
+        redirect_uri="urn:ietf:wg:oauth:2.0:oob",
+    )
 
-        account = gsc_wrapper.Account(credentials)
+    auth_url, b = flow.authorization_url(prompt="consent")
 
-        web_properties = [
-            {"siteUrl": "www.test1.com", "permissionLevel": "1"},
-            {"siteUrl": "www.test2.com", "permissionLevel": "1"},
-            {"siteUrl": "subdomain.google.com", "permissionLevel": "1"},
-        ]
+    # The next following lines facilitate the authentication process with
+    # Google Auth form.
+    from selenium.webdriver import Chrome, ChromeOptions
+    from selenium.webdriver.common.by import By
 
-        site_list = [
-            gsc_wrapper.WebProperty(raw, account) for raw in web_properties
-        ]
-        account._webproperties = site_list
-        site = account["www.test1.com"]
+    # brave_path = f"{Path.home()}/.config/BraveSoftware/Brave-Browser/"
 
-    return site
+    options = ChromeOptions()
+    options.binary_location = "/opt/brave.com/brave/brave"
+    options.add_argument(f"--user-data-dir={Path.home()}/Downloads/GSCWrapperBraveAutomation")
+    options.add_argument("--extension-process")
+    # This implies a manually launched browser with the --remote-debugging-port=9222 option
+    # options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
+
+    # options.add_argument("--no-sandbox")
+    # options.add_argument("--disable-extensions")
+    # options.add_argument("disable-infobars")
+    # options.add_argument("start-maximized")
+
+    with Chrome(options=options) as browser:
+        browser.get(auth_url)
+        time.sleep(2)
+
+        while "approvalnativeapp" not in browser.current_url:
+            time.sleep(2)
+            AuthenticationSteps(browser, config)
+
+        token = browser.find_element(By.CLASS_NAME, "fD1Pid").text
+        browser.close()
+
+    if token is None or len(token) == 0:
+        raise Exception('The authentication token was not retrieved.')
+
+    f = flow.fetch_token(code=token)
+
+    credentials = {
+        "token": token,
+        "refresh_token": f["refresh_token"],
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "token_uri": gsc_wrapper.GOOGLE_TOKEN_URI,
+        "scopes": SCOPES,
+    }
+
+    account = gsc_wrapper.Account(credentials)
+    # Retrieving the sites list is implicitely done inside
+    # the get_item method in the account, but if needed
+    # this can be done with the following
+    # site_list = account.webproperties()
+    return account[SITE_URL]
+
+
+def authenticate_service_account(
+    key_file: str | None = None,
+    subject: str | None = None,
+) -> gsc_wrapper.WebProperty | None:
+    """Programmatic, non-interactive flow using a service account.
+
+    The service account JSON key is loaded and a credentials object is
+    handed straight to the Account class (no browser / consent screen).
+
+    By default the call is made *as the service account itself*, so you
+    must grant the service account email access to the property in Google
+    Search Console first (otherwise the web properties list comes back
+    empty even though authentication succeeds).
+
+    Alternatively, pass ``subject`` to impersonate a real user via
+    domain-wide delegation. This requires a Google Workspace domain with
+    delegation configured for this service account; it does NOT work on a
+    personal Google account.
+
+    Args:
+        key_file: Path to the service account JSON key. When omitted, the
+            ``key_file`` entry under ``[credentials.service]`` in config.ini
+            is used.
+        subject: Email of the Workspace user to impersonate. When omitted,
+            the optional ``subject`` entry under ``[credentials.service]``
+            in config.ini is used, if present.
+
+    Raises:
+        Exception: If no key file is provided and none is configured, or if
+            the resolved path does not point to an existing file.
+    """
+    config = configparser.ConfigParser()
+    config.read(str(Path(__file__).parent / "config.ini"))
+
+    if key_file is None:
+        if not config.has_option("credentials.service", "key_file"):
+            raise Exception(
+                "No service account key file was provided and no "
+                "'key_file' entry was found under [credentials.service] "
+                "in config.ini."
+            )
+        key_file = config.get("credentials.service", "key_file")
+
+    if subject is None and config.has_option(
+        "credentials.service", "subject"
+    ):
+        subject = config.get("credentials.service", "subject")
+
+    if not Path(key_file).is_file():
+        raise Exception(
+            f"The service account key file '{key_file}' does not exist."
+        )
+
+    credentials = service_account.Credentials.from_service_account_file(
+        key_file,
+        scopes=SCOPES,
+    )
+
+    # Domain-wide delegation: act on behalf of a real Workspace user who
+    # already has access to the property, rather than as the bare service
+    # account identity.
+    if subject:
+        credentials = credentials.with_subject(subject)
+
+    account = gsc_wrapper.Account(credentials)
+    return account[SITE_URL]
+
+
+def authenticate_test() -> gsc_wrapper.WebProperty | None:
+    """Offline flow building a fake account to exercise the rest of the
+    code without hitting Google."""
+    credentials = {
+        "token": None,
+        "refresh_token": None,
+        "client_id": None,
+        "client_secret": None,
+        "token_uri": gsc_wrapper.GOOGLE_TOKEN_URI,
+        "scopes": "https://www.googleapis.com/auth/webmasters.readonly",
+    }
+
+    account = gsc_wrapper.Account(credentials)
+
+    web_properties = [
+        {"siteUrl": "www.test1.com", "permissionLevel": "1"},
+        {"siteUrl": "www.test2.com", "permissionLevel": "1"},
+        {"siteUrl": "subdomain.google.com", "permissionLevel": "1"},
+    ]
+
+    site_list = [
+        gsc_wrapper.WebProperty(raw, account) for raw in web_properties
+    ]
+    account._webproperties = site_list
+    return account["www.test1.com"]
+
+
+def Authenticate(
+    method: str = "oauth",
+) -> gsc_wrapper.WebProperty | None:
+    """Dispatch to the desired authentication flow.
+
+    Args:
+        method: One of ``"oauth"`` (interactive user login), ``"service"``
+            (programmatic service account) or ``"test"`` (offline fake).
+    """
+    flows = {
+        "oauth": authenticate_oauth,
+        "service": authenticate_service_account,
+        "test": authenticate_test,
+    }
+
+    if method not in flows:
+        raise ValueError(
+            f"Unknown authentication method '{method}'. "
+            f"Choose one of: {', '.join(flows)}."
+        )
+
+    return flows[method]()
 
 
 def test_search_analytics(query: gsc_wrapper.Query):
@@ -188,7 +289,7 @@ def test_search_analytics(query: gsc_wrapper.Query):
     # print()
 
     # Expected endDate 1 day from startdate 2022-11-10 = 2022-11-11
-    data = query.range(startDate=date(2022, 11, 10), days=1, months=0)
+    query.range(startDate=date(2022, 11, 10), days=1, months=0)
     assert \
         query.startDate == date(2022, 11, 10) and \
         query.endDate == date(2022, 11, 11), "Error"
@@ -309,6 +410,7 @@ def test_url_inspection(site):
     Report = inspect.get()
     # data = inspect.execute()
     df = Report.to_dataframe()
+    df.head()
 
     # Testing the cache
     # At this stage, by calling something different should invalidate the cache
@@ -316,6 +418,7 @@ def test_url_inspection(site):
     inspect.add_url("https://www.andreamoro.eu/contattami", True)
     Report = inspect.get()
     df2 = Report.to_dataframe()
+    df2.head()
 
     # Report.to_disk()
 
@@ -328,7 +431,10 @@ def test_url_inspection(site):
 
 if __name__ == "__main__":
     site = ''
-    site = Authenticate(istest=False)
+    # method="oauth" -> interactive user login (Selenium-driven consent)
+    # method="service" -> programmatic service account (no browser)
+    # method="test" -> offline fake account
+    site = Authenticate(method="service")
 
     # Test the Search Analytics part
     # query = gsc_wrapper.Query(site)

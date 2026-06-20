@@ -56,6 +56,8 @@ Both the `client ID` and the `client secret` have to be generated and saved in a
 
 While this might be seen as a regression, the externalisation is a feature design choice to allow a more flexible approach to source the Google's authentication token, whether this could be via a web-form approach or via a TUI.  
 
+The same externalisation applies to service accounts. Build the `google.auth` service-account credentials yourself — useful for non-interactive use on servers, scheduled jobs or CI — and pass the resulting object to `Account`, exactly as you would pass externally-sourced OAuth credentials. A worked example, including Google Workspace domain-wide delegation, is in the [Service Account authentication guide](docs/service-account-auth.md).
+
 
 ### Querying
 
@@ -152,6 +154,23 @@ or
 Two corresponding methods have been made available to reload persisted information: `from_disk` and `from_datastream`. Both of them returns a `Report` object that can be consumed in the same way as the one returned on a live query.
 
 At present, there is no data compression mechanism, no third-party libraries, and no database saving logic. For more complex requirements, additional code has to be written independently.
+
+
+## Testing
+
+The package ships with an offline unit-test suite that needs no Google credentials and no network access: it builds an `Account` with empty credentials and injects a fake web-property list, so the live API is never called. The suite covers the enumerations, the `Query` builder, the URL-inspection bag and both `Report` classes, and runs on every push through a GitHub Actions workflow against Python 3.11 to 3.13.
+
+```bash
+pip install -e ".[test]"
+pytest
+```
+
+See the [tests README](tests/README.md) for the suite layout and details.
+
+
+## Related projects
+
+- [BWT-Wrapper](https://github.com/andreamoro/BWT-Wrapper) — a companion wrapper that applies the same approach to the Bing Webmaster Tools API.
 
 
 ## Changelog

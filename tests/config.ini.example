@@ -1,0 +1,25 @@
+# Copy this file to `config.ini` and fill in your own values.
+# `config.ini` is gitignored so your secrets are never committed.
+
+# --- OAuth user flow (Authenticate(method="oauth")) ---
+# OAuth 2.0 client credentials generated in the Google Cloud Console.
+[credentials.oauth]
+client_id=YOUR_CLIENT_ID.apps.googleusercontent.com
+client_secret=YOUR_CLIENT_SECRET
+
+# --- Service account flow (Authenticate(method="service")) ---
+[credentials.service]
+# Path to the service account JSON key. Use an absolute path, or a path
+# relative to the directory you run from.
+key_file=tests/your-service-account-key.json
+
+# Optional: only for Google Workspace domain-wide delegation. Email of the
+# Workspace user to impersonate. Leave commented out to authenticate as the
+# service account itself (in which case grant the service account email
+# access to the property in Search Console).
+#subject=you@yourdomain.com  
+
+# --- Selenium login form (only used by the interactive OAuth flow) ---
+[web_authentication]
+email=you@example.com
+password=YOUR_PASSWORD

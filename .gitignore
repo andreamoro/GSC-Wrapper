@@ -1,6 +1,7 @@
 .venv/
 uv.lock
 .vscode
+.claude
 
 *__pycache__*
 .editorconfig
@@ -9,3 +10,5 @@ build/*
 *.pck
 **.txt
 tests/config.ini
+tests/*.json
+*.egg-info/
