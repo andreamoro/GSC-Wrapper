@@ -1,5 +1,6 @@
 from __future__ import annotations
 from googleapiclient import discovery
+from google.auth.credentials import Credentials as GoogleCredentials
 from google.oauth2.credentials import Credentials
 
 
@@ -10,8 +11,14 @@ class Account:
     or to pull information about the indexation status
     of a given URL.
 
+    Credentials can be supplied either as a ``dict`` holding the OAuth user
+    credentials (the historical behaviour) or as an already-built
+    ``google.auth`` credentials object, such as a service account, enabling
+    non-interactive, programmatic access. See ``docs/service-account-auth.md``.
+
     Args:
-        service
+        credentials: Either a dict of OAuth user credentials or a
+            ``google.auth.credentials.Credentials`` instance.
 
     Usage:
     >>> import gsc_wrapper
@@ -24,7 +31,7 @@ class Account:
     <gsc_wrapper.account.WebProperty(url='...')>
     """
 
-    def __init__(self, credentials: dict):
+    def __init__(self, credentials: dict | GoogleCredentials):
         if not credentials:
             raise Exception(
                 "A credential JSON object is required.\n\
@@ -34,8 +41,16 @@ class Account:
         self.service: discovery.Resource = self.__authenticate(credentials)
         self._webproperties: list[WebProperty] = []
 
-    def __authenticate(self, credentials: dict) -> discovery.Resource:
-        self.cred = Credentials(**credentials)
+    def __authenticate(
+        self, credentials: dict | GoogleCredentials
+    ) -> discovery.Resource:
+        # An already built google credentials object (e.g. a service
+        # account) is used as is, otherwise a dict is assumed to hold the
+        # OAuth user credentials needed to build a Credentials instance.
+        if isinstance(credentials, GoogleCredentials):
+            self.cred = credentials
+        else:
+            self.cred = Credentials(**credentials)
 
         API_SERVICE_NAME = "searchconsole"
         API_VERSION = "v1"
@@ -84,7 +99,14 @@ class Account:
         return web_property
 
     def __repr__(self):
-        return f"<gsc_wrapper.account(credentials='{self.cred.client_id}')>"
+        # Service account credentials expose `service_account_email` while
+        # OAuth user credentials expose `client_id`.
+        identifier = getattr(
+            self.cred,
+            "service_account_email",
+            getattr(self.cred, "client_id", None),
+        )
+        return f"<gsc_wrapper.account(credentials='{identifier}')>"
 
 
 class WebProperty:
