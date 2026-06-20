@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Asynchronous routines to speed up bulk operations
 
+## [2.1.0] - 2026-06-20
+
+### Added
+- Service account authentication: `Account` now accepts a pre-built `google.auth` credentials object (e.g. a service account) in addition to the OAuth user-credentials dict, enabling non-interactive, programmatic access. Documented in `docs/service-account-auth.md`, including Google Workspace domain-wide delegation.
+- Offline unit-test suite under `tests/` (84 tests) that needs no Google credentials and no network access, plus a `[test]` optional-dependencies extra and a `pytest` configuration in `pyproject.toml`.
+- GitHub Actions workflow running the test suite against Python 3.11, 3.12 and 3.13.
+
+### Fixed
+- `MyEnumMeta.__contains__` now correctly reports membership by value, member name or member, and no longer swallows results via dead branches.
+- `InspectURL.remove_url` now matches the stored `UrlBag` objects by URL (previously it never removed anything), keeps `urls_to_inspect` in sync, and invalidates the cached `urls` property. The index-based removal now validates bounds correctly.
+- `InspectURL.UrlBag.__eq__` compares against the correct type and returns `NotImplemented` for foreign types.
+- `Query` removes the `SEARCH_APPEARANCE` enum *value* (not the member) from the dimensions list, preventing a `ValueError` when combined with other dimensions.
+
+### Changed
+- Declared `requires-python = ">=3.11"` (the code relies on `typing.Self`) and corrected the license metadata to the SPDX identifier `GPL-3.0-only`.
+- Synced `__version__` in the package with the project version.
+
 ## [2.0.3] - 2026-03-01
 
 ### Fixed

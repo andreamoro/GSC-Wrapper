@@ -14,7 +14,7 @@ __all__ = (
     "search_type",
     "operator",
 )
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 GOOGLE_AUTH_URI = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_REVOKE_URI = "https://oauth2.googleapis.com/revoke"
