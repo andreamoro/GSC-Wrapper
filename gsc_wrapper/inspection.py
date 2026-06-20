@@ -48,8 +48,9 @@ class InspectURL:
             return f"<URLBag({self.url})>"
 
         def __eq__(self, other):
-            if isinstance(other, Self()):
-                return (self.url) == (other.url)
+            if isinstance(other, type(self)):
+                return self.url == other.url
+            return NotImplemented
 
     _lock = 0
 
@@ -80,6 +81,14 @@ class InspectURL:
     @cached_property
     def urls(self) -> list:
         return [item.url for item in self._urls_bag]
+
+    def _invalidate_urls_cache(self):
+        """Discard the memoised ``urls`` value after the bag is mutated.
+
+        ``urls`` is a ``cached_property``; popping it from the instance dict
+        forces it to be recomputed from the current bag on the next access.
+        """
+        self.__dict__.pop("urls", None)
 
     @overload
     def add_url(self, url: str, overwrite: bool = False):
@@ -264,11 +273,14 @@ class InspectURL:
         if not isinstance(url, str):
             raise ValueError("The supplied argument is not a string.")
 
-        try:
-            self._urls_bag.remove(url)
-            self.urls_to_inspect -= 1
-        except ValueError:
-            pass
+        # The bag stores UrlBag objects, so match on the url attribute.
+        for item in self._urls_bag:
+            if item.url == url:
+                self._urls_bag.remove(item)
+                break
+
+        self._urls_to_inspect = len(self._urls_bag)
+        self._invalidate_urls_cache()
 
     @remove_url.register
     def __(self, urls: list):
@@ -283,9 +295,10 @@ class InspectURL:
         if not isinstance(index, int):
             raise ValueError("The supplied argument is not an integer.")
 
-        if len(self._urls_bag) >= index:
+        if 0 <= index < len(self._urls_bag):
             del self._urls_bag[index]
-            self.urls_to_inspect -= 1
+            self._urls_to_inspect = len(self._urls_bag)
+            self._invalidate_urls_cache()
         else:
             raise ValueError("The supplied index is not in the URLs bag.")
 
@@ -298,6 +311,7 @@ class InspectURL:
         """
         self._urls_bag = []
         self._urls_to_inspect = 0
+        self._invalidate_urls_cache()
 
     def execute(self) -> list:
         """Invoke the API to obtain the raw data for the tested URLs.

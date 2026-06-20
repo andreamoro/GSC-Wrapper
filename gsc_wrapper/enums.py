@@ -3,15 +3,16 @@ from enum import Enum, EnumMeta
 
 class MyEnumMeta(EnumMeta):
     def __contains__(cls, item):
+        # Membership accepts either an underlying value (e.g. "ITA"),
+        # a member name (e.g. "ITALY"), or an actual member.
         try:
             cls(item)
         except ValueError:
             try:
-                cls.__members__.get(item)
-            except ValueError:
+                return item in cls.__members__
+            except TypeError:
+                # Unhashable items can never be a member name.
                 return False
-            else:
-                return True
         else:
             return True
 

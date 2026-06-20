@@ -188,8 +188,9 @@ class Query:
             and len(dimensions) > 1:
             # SEARCH_APPEARANCE cannot be combined with any other dimensions.
             # Remove it to prevent the executed query throwing an error.
+            # raw["dimensions"] holds the enum *values*, not the members.
             self.raw.get("dimensions")\
-                .remove(enums.dimension.SEARCH_APPEARANCE)
+                .remove(enums.dimension.SEARCH_APPEARANCE.value)
 
         return self
 
