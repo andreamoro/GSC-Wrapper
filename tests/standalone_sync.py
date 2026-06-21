@@ -1,5 +1,5 @@
-import configparser
 import time
+import tomllib
 
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import service_account
@@ -15,6 +15,12 @@ from gsc_wrapper.inspection import Report as ReportInspection
 
 SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
 SITE_URL = "https://www.andreamoro.eu/"
+
+
+def _load_config() -> dict:
+    """Load ``tests/config.toml`` into a nested dict (stdlib ``tomllib``)."""
+    with open(Path(__file__).parent / "config.toml", "rb") as f:
+        return tomllib.load(f)
 
 
 def AuthenticationSteps(browser, config):
@@ -61,14 +67,13 @@ def AuthenticationSteps(browser, config):
 def authenticate_oauth() -> gsc_wrapper.WebProperty | None:
     """Interactive OAuth user flow.
 
-    A client_id / client_secret pair is read from config.ini and the
+    A client_id / client_secret pair is read from config.toml and the
     consent screen is driven automatically through Selenium to retrieve
     the authorisation token. Suited to acting on behalf of a human user.
     """
-    config = configparser.ConfigParser()
-    config.read(str(Path(__file__).parent / "config.ini"))
-    client_id = config["credentials.oauth"]["client_id"]
-    client_secret = config["credentials.oauth"]["client_secret"]
+    config = _load_config()
+    client_id = config["credentials"]["oauth"]["client_id"]
+    client_secret = config["credentials"]["oauth"]["client_secret"]
 
     credentials = {
         "installed": {
@@ -161,32 +166,29 @@ def authenticate_service_account(
 
     Args:
         key_file: Path to the service account JSON key. When omitted, the
-            ``key_file`` entry under ``[credentials.service]`` in config.ini
+            ``key_file`` entry under ``[credentials.service]`` in config.toml
             is used.
         subject: Email of the Workspace user to impersonate. When omitted,
             the optional ``subject`` entry under ``[credentials.service]``
-            in config.ini is used, if present.
+            in config.toml is used, if present.
 
     Raises:
         Exception: If no key file is provided and none is configured, or if
             the resolved path does not point to an existing file.
     """
-    config = configparser.ConfigParser()
-    config.read(str(Path(__file__).parent / "config.ini"))
+    service = _load_config().get("credentials", {}).get("service", {})
 
     if key_file is None:
-        if not config.has_option("credentials.service", "key_file"):
+        if "key_file" not in service:
             raise Exception(
                 "No service account key file was provided and no "
                 "'key_file' entry was found under [credentials.service] "
-                "in config.ini."
+                "in config.toml."
             )
-        key_file = config.get("credentials.service", "key_file")
+        key_file = service["key_file"]
 
-    if subject is None and config.has_option(
-        "credentials.service", "subject"
-    ):
-        subject = config.get("credentials.service", "subject")
+    if subject is None and "subject" in service:
+        subject = service["subject"]
 
     if not Path(key_file).is_file():
         raise Exception(

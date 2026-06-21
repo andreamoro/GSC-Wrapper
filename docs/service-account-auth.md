@@ -116,8 +116,8 @@ service account has access" to "the user it impersonates has access."
 
 ## Configuration in this repo's tests
 
-`tests/test.py` exposes a small dispatcher so you can switch flows without
-touching the rest of the code:
+`tests/standalone_sync.py` exposes a small dispatcher so you can switch flows
+without touching the rest of the code:
 
 ```python
 site = Authenticate(method="service")   # programmatic service account
@@ -125,15 +125,16 @@ site = Authenticate(method="oauth")     # interactive user login (Selenium)
 site = Authenticate(method="test")      # offline fake account
 ```
 
-By default the service-account flow reads the key path from a
-`service_account` entry under `[credentials]` in `tests/config.ini`:
+By default the service-account flow reads the key path from a `key_file`
+entry under `[credentials.service]` in `tests/config.toml`:
 
-```ini
-[credentials]
-service_account = /absolute/path/to/key.json
+```toml
+[credentials.service]
+key_file = "/absolute/path/to/key.json"
+# subject = "you@yourdomain.com"   # optional: domain-wide delegation
 ```
 
-If no path is provided (neither as an argument nor in `config.ini`), or the
+If no path is provided (neither as an argument nor in `config.toml`), or the
 file does not exist, authentication fails loudly with a clear error rather
 than silently falling back.
 

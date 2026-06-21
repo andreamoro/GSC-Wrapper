@@ -9,6 +9,6 @@ uv.lock
 build/*
 *.pck
 **.txt
-tests/config.ini
+tests/config.toml
 tests/*.json
 *.egg-info/
