@@ -120,6 +120,67 @@ A report is automatically generated when the `get` method is recalled, in which 
 To limit the data to the first batch, or to retrieve the raw data as pulled from the API, use the `execute` method.
 
 
+### Asynchronous API
+
+An `asyncio`-native API lives alongside the synchronous one under `gsc_wrapper.aio` (the same names are also re-exported at the top level). It is a drop-in mental model: the declarative builder methods (`range`, `filter`, `dimensions`, `limit`, `add_url`, …) are identical and synchronous, while the network-bound `execute`/`get` become coroutines you `await`.
+
+Under the hood it talks to the REST endpoints directly over [`httpx`](https://www.python-httpx.org/), smooths the request rate with [`aiolimiter`](https://aiolimiter.readthedocs.io/) (replacing the blocking `time.sleep` throttle) and caps concurrency, so bulk operations — notably URL inspection — run **concurrently** instead of one at a time. Access tokens are sourced from the very same `google.auth` credentials objects you already pass to the synchronous `Account`.
+
+The `AsyncAccount` owns its HTTP transport, so use it as an async context manager (or call `await account.aclose()` when done).
+
+_Example:_
+```python
+import asyncio
+import gsc_wrapper
+from gsc_wrapper import dimension
+
+async def main():
+    credentials = { ... }  # OAuth dict or a google.auth credentials object
+
+    async with gsc_wrapper.AsyncAccount(credentials) as account:
+        site = await account.webproperty("https://www.example.com/")
+
+        # Search Analytics
+        report = await (
+            site.query
+            .range(startDate="2022-11-10", days=-7, months=0)
+            .dimensions(dimension.DATE)
+            .get()
+        )
+
+        # URL Inspection — every URL inspected concurrently
+        inspect = site.inspect
+        inspect.add_url([
+            "https://www.example.com/",
+            "https://www.example.com/blog",
+        ])
+        indexing = await inspect.get()
+
+asyncio.run(main())
+```
+
+The rate limit and concurrency cap are tunable on `AsyncAccount` (`max_rate`, `time_period`, `max_concurrency`, `timeout`). The returned `Report` objects are exactly the synchronous ones, so every export (`to_dict`, `to_dataframe`, `to_disk`/`from_disk`, …) works identically.
+
+#### Where concurrency actually helps
+
+The two APIs parallelise at different granularities, and it is worth knowing which is which:
+
+- **URL Inspection** issues one independent request per URL, so `await inspect.get()` fans them out with `asyncio.gather` and finishes in roughly the time of a single call — the bigger the batch, the bigger the win.
+- **Search Analytics** is a *single* cursor-paginated query: `get()` cannot fetch page _n+1_ until page _n_ comes back, so one report still pages sequentially.
+  The async win there comes from running **several independent queries at once** (different sites, date ranges or dimensions) and `await asyncio.gather(...)`-ing them yourself.
+
+#### How it is built (and why)
+
+- **Alongside, not instead of.** The synchronous API is the right default for notebooks, one-off scripts and synchronous call sites; the async API is opt-in for servers and fan-out workloads. Nothing in the sync path changed behaviourally.
+- **Thin, shared core.** `AsyncQuery`/`AsyncInspectURL` subclass their synchronous counterparts, inheriting the whole declarative builder unchanged; only `execute`/`get` are overridden to `await`. `Query.get`'s pagination policy is factored into shared helpers so the sync and async versions differ by a single `await`. This keeps the async layer cheap to maintain rather than a parallel copy.
+- **Auth is reused.** Tokens come from your existing `google-auth` credentials; only the (infrequent) refresh is off-loaded to a thread and lock-guarded, while
+  the actual API calls are fully non-blocking over `httpx`.
+- **No magic accessors.** `account[0]` / `len(account)` are intentionally absent on the async side — those dunders cannot be coroutines and the sync ones hide a network call. Use the explicit `await account.webproperties()` and `await account.webproperty(key)` instead. (`Report`'s own dunders are kept, because by then the data is already in memory.)
+
+See [`tests/standalone_async.py`](tests/standalone_async.py) for a runnable demo
+that prints data and times the concurrency, fully offline.
+
+
 ### Integration with Pandas DataFrame 
 If you wish to load your data directly into a [Pandas DataFrame](https://pandas.pydata.org/), this can be done contextually after the extraction. 
 Please pay attention that Pandas has not been included as part of this package requirements, therefore you need to install it separately.

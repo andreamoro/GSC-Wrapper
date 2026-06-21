@@ -5,8 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-- Asynchronous routines to speed up bulk operations
+## [2.2.0] - 2026-06-21
+
+### Added
+- Asynchronous API under `gsc_wrapper.aio`, re-exported at the top level: `AsyncAccount`, `AsyncWebProperty`, `AsyncQuery`, `AsyncInspectURL`, `AsyncTransport` and `GSCApiError`. It lives **alongside** the synchronous API — existing synchronous code is unaffected.
+- `AsyncTransport`: an authenticated, non-blocking HTTP layer over `httpx` talking directly to the Search Console REST endpoints. Request rate limiting via `aiolimiter` replaces the blocking `time.sleep` throttle, a semaphore caps in-flight requests, and `GSCApiError` surfaces the API's error message.
+- Concurrent URL inspection: `AsyncInspectURL.execute` inspects every queued URL with `asyncio.gather` instead of serially — the headline reason to use the async API.
+- `tests/standalone_async.py`: a runnable demo (the async sibling of `standalone_sync.py`) that prints real data offline via a stub transport and shows both the inspection (intra-operation) and reporting (cross-query fan-out) concurrency wins.
+- Offline async test suite (httpx mocked with `respx`, no network); `pytest-asyncio` and `respx` added to the `[test]` extra and `asyncio_mode = "auto"` configured.
+
+### Changed
+- Added `httpx` and `aiolimiter` as runtime dependencies (both rely only on Python ≥ 3.11, already required).
+- Token sourcing reuses the existing `google-auth` credentials; the rare token refresh is off-loaded to a worker thread and guarded by a lock against a refresh stampede.
+- Internal de-duplication so the async layer adds little maintenance: `AsyncQuery`/`AsyncInspectURL` subclass the sync builders (declarative API inherited verbatim); `Query.get`'s cursor logic is factored into shared `_paginate_init`/`_merge_chunk`/`_build_report` helpers so sync and async `get` differ only by `await`; `AsyncWebProperty` subclasses `WebProperty`; credential building/identifying is shared via `build_credentials`/`credentials_identifier`.
+- The manual integration script `tests/test.py` is renamed to `tests/standalone_sync.py` for symmetry with the async demo (neither is collected by pytest).
+- The standalone scripts' configuration moved from INI to TOML (`tests/config.toml`, read with the stdlib `tomllib`); `config.ini.example` becomes `config.toml.example`. The package itself reads no configuration, so this is test-only.
+
+### Fixed
+- Suppressed a Pyrefly `bad-class-definition` false positive on the runtime-built `Report` namedtuple in `query.py` (the dynamic field list is valid; the static checker cannot model it), matching the existing suppression in `inspection.py`.
 
 ## [2.1.0] - 2026-06-20
 

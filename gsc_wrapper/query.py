@@ -790,32 +790,44 @@ class Query:
         >>> query.get()
         <gsc_wrapper.query.Report(rows=...)>
         """
-        raw_data = []
-        startRow = self.raw.get("startRow", 0)
-        step = self.raw.get("rowLimit", 25000)
-        chunck_len = 0
-        is_complete = False
+        raw_data: list = []
+        startRow, step = self._paginate_init()
 
-        while not is_complete:
+        while True:
             chunk = self.execute()
-
-            if chunk.get("rows"):
-                raw_data += chunk.get("rows")
-                chunck_len = len(raw_data)
-            else:
-                is_complete = True
-
-            # Move to the next "batch"
+            if self._merge_chunk(raw_data, chunk):
+                break
             self.raw["startRow"] += step
 
-        # Report stores a copy of the query object for reference.
-        # Setting original limits to ensure consistency with the
-        # data header.
+        return self._build_report(raw_data, startRow, step)
+
+    # --- shared pagination helpers -----------------------------------------
+    # These hold the pure (network-free) cursor logic so the synchronous and
+    # asynchronous ``get`` implementations differ by a single line - the
+    # ``await`` on ``execute`` - and never duplicate the batching policy.
+
+    def _paginate_init(self) -> tuple[int, int]:
+        """Return the starting row and batch step for a paged ``get``."""
+        return self.raw.get("startRow", 0), self.raw.get("rowLimit", 25000)
+
+    @staticmethod
+    def _merge_chunk(raw_data: list, chunk: dict) -> bool:
+        """Append a batch's rows to ``raw_data``; return True when exhausted."""
+        rows = chunk.get("rows")
+        if rows:
+            raw_data += rows
+            return False
+        return True
+
+    def _build_report(self, raw_data: list, startRow: int, step: int) -> Report:
+        """Assemble the final :class:`Report` and restore the original limits."""
+        # Report stores a copy of the query object for reference; restore the
+        # original limits so the header stays consistent with the data.
         query = self.raw.copy()
         query["startRow"] = startRow
-        query["rowLimit"] = chunck_len
+        query["rowLimit"] = len(raw_data)
 
-        # Resetting the limit to the original values
+        # Reset the limit to the original values.
         self.limit(startRow, step)
 
         return Report(self.webproperty.url, query, raw_data)
@@ -918,6 +930,7 @@ class Report:
 
         self.dimensions = self.query.get("dimensions", list())
         self.columns = self.dimensions + base_metrics
+        # pyrefly: ignore [bad-class-definition]
         self.row = collections.namedtuple("Row", self.columns)
         self.rows = []
         self.raw = raw

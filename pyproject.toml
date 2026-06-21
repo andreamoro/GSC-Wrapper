@@ -8,7 +8,7 @@ authors = [
     {name = "Andrea Moro", email = "info@andreamoro.eu"},
 ]
 description = "A package to take the pain out when working with the Google Search Console API."
-version = "2.1.0"
+version = "2.2.0"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "GPL-3.0-only"}
@@ -17,7 +17,9 @@ dependencies = [
     "google-auth-oauthlib >= 1.1.0",
     "google-api-python-client >= 2.0.0",
     "multi-args-dispatcher @ git+https://github.com/andreamoro/Dispatcher",
-    "python_dateutil >= 2.8.0"
+    "python_dateutil >= 2.8.0",
+    "httpx >= 0.24",
+    "aiolimiter >= 1.1",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +29,8 @@ dev = [
 test = [
     "pytest >= 7.0",
     "pandas >= 1.5",
+    "pytest-asyncio >= 0.23",
+    "respx >= 0.20",
 ]
 
 [tool.pytest.ini_options]
@@ -34,4 +38,6 @@ testpaths = ["tests"]
 # Collect only the pytest suite, not the manual auth/integration script.
 python_files = ["test_*.py"]
 addopts = "-ra"
+# Async tests are written without an explicit ``@pytest.mark.asyncio`` marker.
+asyncio_mode = "auto"
 

@@ -473,6 +473,7 @@ class Report:
             namedtuple
         """
         return namedtuple(
+            # pyrefly: ignore [bad-class-definition]
             "Rows", collection.keys()
         )(*tuple(
             map(lambda x: x
