@@ -42,7 +42,11 @@ class InspectURL:
     class UrlBag():
         url: str
         value: json = None
-        expire: int = 0
+        # ``None`` means "never inspected". Storing 0 here would be ambiguous:
+        # the freshness check below compares against ``time.monotonic()``, whose
+        # epoch is the (arbitrary) system boot time, so on a freshly booted host
+        # a 0 sentinel can read as still-fresh. ``None`` is always stale.
+        expire: float | None = None
 
         def __repr__(self):
             return f"<URLBag({self.url})>"
@@ -325,8 +329,8 @@ class InspectURL:
 
         try:
             for item in self._urls_bag:
-                # Check for TTL
-                if item.expire + 450 < time.monotonic():
+                # Check for TTL (a never-inspected item has ``expire is None``).
+                if item.expire is None or item.expire + 450 < time.monotonic():
                     self._wait()
                     self.raw = {
                         # "inspectionUrl": urls_to_check.pop(),

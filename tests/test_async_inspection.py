@@ -25,9 +25,8 @@ def test_is_an_inspecturl_subclass(async_site):
     assert isinstance(async_site.inspect, AsyncInspectURL)
 
 
-@respx.mock
-async def test_execute_inspects_each_url_in_order(async_site):
-    route = respx.post(URL_INSPECTION_URL).mock(side_effect=_inspection_response)
+async def test_execute_inspects_each_url_in_order(async_site, respx_mock):
+    route = respx_mock.post(URL_INSPECTION_URL).mock(side_effect=_inspection_response)
 
     inspect = async_site.inspect
     inspect.add_url(["https://www.test1.com/", "https://www.test1.com/blog"])
@@ -43,9 +42,8 @@ async def test_execute_inspects_each_url_in_order(async_site):
     ]
 
 
-@respx.mock
-async def test_results_are_cached_within_ttl(async_site):
-    route = respx.post(URL_INSPECTION_URL).mock(side_effect=_inspection_response)
+async def test_results_are_cached_within_ttl(async_site, respx_mock):
+    route = respx_mock.post(URL_INSPECTION_URL).mock(side_effect=_inspection_response)
 
     inspect = async_site.inspect
     inspect.add_url("https://www.test1.com/")
@@ -56,9 +54,8 @@ async def test_results_are_cached_within_ttl(async_site):
     assert route.call_count == 1
 
 
-@respx.mock
-async def test_get_returns_report(async_site):
-    respx.post(URL_INSPECTION_URL).mock(side_effect=_inspection_response)
+async def test_get_returns_report(async_site, respx_mock):
+    respx_mock.post(URL_INSPECTION_URL).mock(side_effect=_inspection_response)
 
     inspect = async_site.inspect
     inspect.add_url("https://www.test1.com/")
@@ -69,7 +66,6 @@ async def test_get_returns_report(async_site):
     assert len(report) == 1
 
 
-@respx.mock
 async def test_empty_bag_yields_empty_results(async_site):
     results = await async_site.inspect.execute()
     assert results == []

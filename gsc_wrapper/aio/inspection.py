@@ -44,7 +44,7 @@ class AsyncInspectURL(InspectURL):
 
     async def __inspect(self, item) -> dict:
         """Fetch (or reuse the cached) inspection result for a single bag item."""
-        if item.expire + _TTL_SECONDS < time.monotonic():
+        if item.expire is None or item.expire + _TTL_SECONDS < time.monotonic():
             body = {
                 "inspectionUrl": item.url,
                 "siteUrl": self.webproperty.url,
