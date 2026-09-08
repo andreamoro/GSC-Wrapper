@@ -19,6 +19,21 @@ key_file = "tests/your-service-account-key.json"
 # access to the property in Search Console).
 # subject = "you@yourdomain.com"
 
+# --- ADC impersonation flow (Authenticate(method="adc")) ---
+# Keyless: no JSON key is read anywhere. The service account is named by email
+# and Application Default Credentials sign the token request — an attached
+# service account on GCE/Cloud Run, or a local
+# `gcloud auth application-default login`.
+#
+# Requires the IAM Credentials API enabled, your ADC principal holding
+# roles/iam.serviceAccountTokenCreator on this account, and THIS email added as
+# a user on the property in Search Console (impersonating does not inherit the
+# source identity's access). See docs/service-account-auth.md, Option C.
+#
+# Falls back to the GSC_SERVICE_ACCOUNT_EMAIL environment variable when unset.
+[credentials.adc]
+service_account_email = "presence@your-project.iam.gserviceaccount.com"
+
 # --- Selenium login form (only used by the interactive OAuth flow) ---
 [web_authentication]
 email = "you@example.com"

@@ -1,3 +1,4 @@
+import os
 import time
 import tomllib
 
@@ -210,6 +211,51 @@ def authenticate_service_account(
     return account[SITE_URL]
 
 
+def authenticate_adc(
+    service_account_email: str | None = None,
+) -> gsc_wrapper.WebProperty | None:
+    """Keyless flow: impersonate a service account off Application Default
+    Credentials.
+
+    No JSON key is read anywhere. The service account is named by email and
+    ADC — an attached service account on GCE/Cloud Run, or a local
+    ``gcloud auth application-default login`` — signs the token request. This
+    is the route to use where organisation policy forbids creating
+    service-account keys.
+
+    The impersonated (target) email must be added as a user on the property in
+    Search Console; impersonating does not inherit the source identity's
+    access. See ``docs/service-account-auth.md``, Option C.
+
+    Args:
+        service_account_email: Email of the service account to impersonate.
+            When omitted, the ``service_account_email`` entry under
+            ``[credentials.adc]`` in config.toml is used, falling back to the
+            ``GSC_SERVICE_ACCOUNT_EMAIL`` environment variable.
+
+    Raises:
+        Exception: If no target service account can be determined.
+    """
+    if service_account_email is None:
+        adc = _load_config().get("credentials", {}).get("adc", {})
+        service_account_email = adc.get("service_account_email") or \
+            os.environ.get("GSC_SERVICE_ACCOUNT_EMAIL")
+
+    if not service_account_email:
+        raise Exception(
+            "No service account email was provided, no "
+            "'service_account_email' entry was found under [credentials.adc] "
+            "in config.toml, and GSC_SERVICE_ACCOUNT_EMAIL is unset."
+        )
+
+    credentials = gsc_wrapper.credentials.impersonate(
+        service_account_email, scopes=SCOPES
+    )
+
+    account = gsc_wrapper.Account(credentials)
+    return account[SITE_URL]
+
+
 def authenticate_test() -> gsc_wrapper.WebProperty | None:
     """Offline flow building a fake account to exercise the rest of the
     code without hitting Google."""
@@ -244,11 +290,13 @@ def Authenticate(
 
     Args:
         method: One of ``"oauth"`` (interactive user login), ``"service"``
-            (programmatic service account) or ``"test"`` (offline fake).
+            (programmatic service account), ``"adc"`` (keyless impersonation
+            off Application Default Credentials) or ``"test"`` (offline fake).
     """
     flows = {
         "oauth": authenticate_oauth,
         "service": authenticate_service_account,
+        "adc": authenticate_adc,
         "test": authenticate_test,
     }
 
@@ -435,6 +483,7 @@ if __name__ == "__main__":
     site = ''
     # method="oauth" -> interactive user login (Selenium-driven consent)
     # method="service" -> programmatic service account (no browser)
+    # method="adc" -> impersonation off Application Default Credentials
     # method="test" -> offline fake account
     site = Authenticate(method="service")
 

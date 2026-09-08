@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Optional `gsc_wrapper.credentials` helper module for the non-interactive authentication routes. It only *builds* credentials — `Account` and `AsyncAccount` keep accepting exactly what they always have, so the externalised-flow design and every existing call site are untouched.
+  - `impersonate()`: name a service account by email and let Application Default Credentials sign the token request, holding no key for it anywhere. This is the route that works where organisation policy forbids creating service-account keys (`constraints/iam.disableServiceAccountKeyCreation`). It applies the scope split impersonation actually requires — `cloud-platform` on the source identity, Search Console scopes only on the minted token.
+  - `from_service_account_file()`: a JSON key on disk, with optional Workspace domain-wide delegation via `subject`.
+  - `from_file()`: loads whichever of the three JSON shapes Google writes (`service_account`, `authorized_user`, or the historical flat mapping), detected by the `type` key.
+  - `from_env()`: resolves either route from `GSC_SERVICE_ACCOUNT_EMAIL` / `GSC_CREDENTIALS_PATH` (`GSC_SUBJECT` optional). The email wins whenever set and the key path is then *not read at all* — no silent fallback to a key on disk, so a misconfigured environment fails loudly instead of authenticating as an unnamed principal.
+  - `CredentialsError`, plus `READONLY_SCOPES` / `READWRITE_SCOPES` / `IMPERSONATION_SCOPES` constants.
+- `docs/service-account-auth.md` gains **Option C** — Application Default Credentials with impersonation — covering the IAM prerequisites, the scope split, deployment off GCP, and five new troubleshooting rows. Options A and B are unchanged; they simply also show the helper equivalent now.
+- `Authenticate(method="adc")` in `tests/standalone_sync.py`, configured by `[credentials.adc]` in `config.toml` (falling back to `GSC_SERVICE_ACCOUNT_EMAIL`).
+- `tests/test_credentials.py`: 16 offline tests covering JSON-shape dispatch, scope defaults, the ADC failure message and the `from_env` precedence rule.
+
 ## [2.2.0] - 2026-06-21
 
 ### Added

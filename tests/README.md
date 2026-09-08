@@ -20,6 +20,7 @@ pytest
 | `test_enums.py` | Enum values and the `MyEnumMeta` metaclass |
 | `test_util.py` | `Util.get_filename` |
 | `test_account.py` | `Account` / `WebProperty` lookup and equality |
+| `test_credentials.py` | `gsc_wrapper.credentials`: JSON shape dispatch, ADC impersonation, `from_env` precedence |
 | `test_query.py` | `Query` builder: `range`, `dimensions`, `filter`, `limit`, … |
 | `test_query_report.py` | Search-analytics `Report` (rows, dataframe, disk round-trip) |
 | `test_inspection.py` | `InspectURL` URL bag management |
@@ -32,14 +33,20 @@ pytest
 The async tests are equally offline: httpx is mocked with `respx` and a fake,
 always-valid credentials object means no token refresh and no network.
 
+`test_credentials.py` is offline too: the only call that would need a valid RSA
+key — Google's own `from_service_account_file` — is stubbed at the boundary, and
+`google.auth.default` is monkeypatched, so no ADC and no IAM round-trip are
+involved.
+
 ## Standalone scripts (not collected by pytest)
 
 `standalone_sync.py` and `standalone_async.py` are manual, runnable demos — the
 configuration only collects `test_*.py`, so neither is picked up by pytest.
 
 - `standalone_sync.py` (formerly `test.py`) — the original browser-driven
-  authentication / integration script; its `"oauth"`/`"service"` flows need real
-  credentials (and a browser for OAuth).
+  authentication / integration script; its `"oauth"`, `"service"` and `"adc"`
+  flows need real credentials (a browser for OAuth, a key file for `service`,
+  working Application Default Credentials for `adc`).
 - `standalone_async.py` — the async counterpart. Its default `"test"` flow is
   fully offline (a stub transport returns canned data), so it prints real rows
   and demonstrates concurrent URL inspection with no credentials:

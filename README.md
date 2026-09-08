@@ -58,6 +58,26 @@ While this might be seen as a regression, the externalisation is a feature desig
 
 The same externalisation applies to service accounts. Build the `google.auth` service-account credentials yourself — useful for non-interactive use on servers, scheduled jobs or CI — and pass the resulting object to `Account`, exactly as you would pass externally-sourced OAuth credentials. A worked example, including Google Workspace domain-wide delegation, is in the [Service Account authentication guide](docs/service-account-auth.md).
 
+That externalisation stays exactly as it is. What the package now offers *on top* is an **optional** helper module, `gsc_wrapper.credentials`, for the non-interactive routes that are tedious to get right by hand. It builds a credentials object and hands it back to you — `Account` still simply receives one, so nothing about the design changes and no existing code is affected.
+
+_Example:_
+```python
+from gsc_wrapper import Account, credentials
+
+# A service account key on disk (add `subject=` for Workspace delegation)
+account = Account(credentials.from_service_account_file("/path/to/key.json"))
+
+# Or keyless: name a service account and let Application Default Credentials
+# sign the token request. No key is held anywhere — the route to use where
+# policy forbids creating service-account keys.
+account = Account(credentials.impersonate("me@project.iam.gserviceaccount.com"))
+
+# Or resolve either route from GSC_SERVICE_ACCOUNT_EMAIL / GSC_CREDENTIALS_PATH
+account = Account(credentials.from_env())
+```
+
+The same objects work unchanged with `AsyncAccount`. All three routes — service-account key, Workspace domain-wide delegation, and Application Default Credentials with impersonation — are walked through, with their IAM prerequisites and failure modes, in the [Service Account authentication guide](docs/service-account-auth.md).
+
 
 ### Querying
 

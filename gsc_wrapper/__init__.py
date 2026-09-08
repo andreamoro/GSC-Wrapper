@@ -1,3 +1,4 @@
+from gsc_wrapper import credentials
 from gsc_wrapper.account import Account, WebProperty
 from gsc_wrapper.query import Query
 from gsc_wrapper.inspection import InspectURL
@@ -12,6 +13,7 @@ from gsc_wrapper.aio import (
 )
 
 __all__ = (
+    "credentials",
     "Account",
     "WebProperty",
     "Query",
